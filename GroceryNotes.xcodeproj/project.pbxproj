@@ -1,0 +1,597 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		20DB1040D87A4873B19BE57E /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = BA3FD621B6104A0B833753B1 /* FirebaseAuth */; };
+		50840DF1B6674C31979963CE /* FirestoreSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5F23B45794844AAB7B8933D /* FirestoreSyncService.swift */; };
+		536AC524E9114786948A3601 /* ShareListSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8341C644A09F4AF381762893 /* ShareListSheet.swift */; };
+		5574E4835C6F466A96FED340 /* View+OutfitFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1378A1EC5B634CBC8A75DC7C /* View+OutfitFont.swift */; };
+		75E0F67435834A14BC033FF4 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87BC7021B9D46DBA57AF3CF /* AuthenticationView.swift */; };
+		7A02D5722F005A4800D5CCC5 /* PopularRecipesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */; };
+		7AA8B7D22EF1CA81000CBD35 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */; };
+		7AE4CA2C2EF5F297009A7C4E /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */; };
+		7AE4CA2D2EF5F297009A7C4E /* Outfit-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA292EF5F297009A7C4E /* Outfit-Regular.ttf */; };
+		7AE4CA2E2EF5F297009A7C4E /* Outfit-Light.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA272EF5F297009A7C4E /* Outfit-Light.ttf */; };
+		7AE4CA2F2EF5F297009A7C4E /* Outfit-Black.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA232EF5F297009A7C4E /* Outfit-Black.ttf */; };
+		7AE4CA302EF5F297009A7C4E /* Outfit-Thin.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA2B2EF5F297009A7C4E /* Outfit-Thin.ttf */; };
+		7AE4CA312EF5F297009A7C4E /* Outfit-SemiBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA2A2EF5F297009A7C4E /* Outfit-SemiBold.ttf */; };
+		7AE4CA322EF5F297009A7C4E /* Outfit-ExtraBold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA252EF5F297009A7C4E /* Outfit-ExtraBold.ttf */; };
+		7AE4CA332EF5F297009A7C4E /* Outfit-ExtraLight.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA262EF5F297009A7C4E /* Outfit-ExtraLight.ttf */; };
+		7AE4CA342EF5F297009A7C4E /* Outfit-Medium.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA282EF5F297009A7C4E /* Outfit-Medium.ttf */; };
+		919E4CDB0C374591BA486159 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 7EDFE0C3738F4BF6BC9BAD80 /* FirebaseFirestore */; };
+		A05638E2C80443BAAC71E3BF /* Font+Outfit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20D51C89B4034B33A7D535BA /* Font+Outfit.swift */; };
+		AA0000010000000000000001 /* GroceryNotesApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000020000000000000001 /* GroceryNotesApp.swift */; };
+		AA0000030000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000040000000000000001 /* ContentView.swift */; };
+		AA0000050000000000000001 /* GroceryCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000060000000000000001 /* GroceryCategory.swift */; };
+		AA0000070000000000000001 /* GroceryNote.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000080000000000000001 /* GroceryNote.swift */; };
+		AA0000090000000000000001 /* GroceryItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000100000000000000001 /* GroceryItem.swift */; };
+		AA0000110000000000000001 /* RecurringItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000120000000000000001 /* RecurringItem.swift */; };
+		AA0000130000000000000001 /* ItemKnowledge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000140000000000000001 /* ItemKnowledge.swift */; };
+		AA0000150000000000000001 /* MealModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000160000000000000001 /* MealModels.swift */; };
+		AA0000170000000000000001 /* NotesListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000180000000000000001 /* NotesListView.swift */; };
+		AA0000190000000000000001 /* GroceryNoteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000200000000000000001 /* GroceryNoteDetailView.swift */; };
+		AA0000210000000000000001 /* StorageDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000220000000000000001 /* StorageDetailView.swift */; };
+		AA0000230000000000000001 /* MealsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000240000000000000001 /* MealsView.swift */; };
+		AA0000250000000000000001 /* CategorizationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000260000000000000001 /* CategorizationService.swift */; };
+		AA0000270000000000000001 /* AIRecipeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000280000000000000001 /* AIRecipeService.swift */; };
+		AA0000290000000000000001 /* AppConfiguration.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000300000000000000001 /* AppConfiguration.swift */; };
+		AA0000310000000000000001 /* CloudKitSharingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000320000000000000001 /* CloudKitSharingService.swift */; };
+		AA0000330000000000000001 /* V2Services.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000340000000000000001 /* V2Services.swift */; };
+		AA0000350000000000000001 /* SeedData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000360000000000000001 /* SeedData.swift */; };
+		AA0000400000000000000002 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000390000000000000002 /* Assets.xcassets */; };
+		AA2B7963B1E1514FA2977463 /* DALLEImageService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA78645F2EB004493582974F /* DALLEImageService.swift */; };
+		AA543A34B1FF9047F3B263A9 /* RecipeIngredientSelectionSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AACCD1178A575A4CF7B741D1 /* RecipeIngredientSelectionSheet.swift */; };
+		AA57D6F1B8EE4745DFBAD1B6 /* VoiceInputParserService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAC4C11CE769B442ED90D33A /* VoiceInputParserService.swift */; };
+		AAAEA7877D6B444AC4BAB200 /* RecipeURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA372FCE5A0794EABBB0A05 /* RecipeURLService.swift */; };
+		AAD25B8DC9E86F42AE97BE07 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE4C93F20027B4DC78DF58D /* SpeechRecognitionService.swift */; };
+		E126B79AA8B448449FB50FCE /* JoinListSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CCEC3905F3D498F8FF0B2B2 /* JoinListSheet.swift */; };
+		F4382C84EE924942AA4158CB /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7700BB8135224B3AA75E265B /* GoogleService-Info.plist */; };
+		FC697BE4FFB9466FBAE0B76A /* FirebaseAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		1378A1EC5B634CBC8A75DC7C /* View+OutfitFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+OutfitFont.swift"; sourceTree = "<group>"; };
+		20D51C89B4034B33A7D535BA /* Font+Outfit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Font+Outfit.swift"; sourceTree = "<group>"; };
+		2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthService.swift; sourceTree = "<group>"; };
+		7700BB8135224B3AA75E265B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularRecipesSheet.swift; sourceTree = "<group>"; };
+		7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		7AE4CA232EF5F297009A7C4E /* Outfit-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Black.ttf"; sourceTree = "<group>"; };
+		7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
+		7AE4CA252EF5F297009A7C4E /* Outfit-ExtraBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-ExtraBold.ttf"; sourceTree = "<group>"; };
+		7AE4CA262EF5F297009A7C4E /* Outfit-ExtraLight.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-ExtraLight.ttf"; sourceTree = "<group>"; };
+		7AE4CA272EF5F297009A7C4E /* Outfit-Light.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Light.ttf"; sourceTree = "<group>"; };
+		7AE4CA282EF5F297009A7C4E /* Outfit-Medium.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Medium.ttf"; sourceTree = "<group>"; };
+		7AE4CA292EF5F297009A7C4E /* Outfit-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Regular.ttf"; sourceTree = "<group>"; };
+		7AE4CA2A2EF5F297009A7C4E /* Outfit-SemiBold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-SemiBold.ttf"; sourceTree = "<group>"; };
+		7AE4CA2B2EF5F297009A7C4E /* Outfit-Thin.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Thin.ttf"; sourceTree = "<group>"; };
+		7CCEC3905F3D498F8FF0B2B2 /* JoinListSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinListSheet.swift; sourceTree = "<group>"; };
+		8341C644A09F4AF381762893 /* ShareListSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareListSheet.swift; sourceTree = "<group>"; };
+		AA0000010000000000000002 /* GroceryNotes.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = GroceryNotes.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		AA0000020000000000000001 /* GroceryNotesApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryNotesApp.swift; sourceTree = "<group>"; };
+		AA0000040000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		AA0000060000000000000001 /* GroceryCategory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryCategory.swift; sourceTree = "<group>"; };
+		AA0000080000000000000001 /* GroceryNote.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryNote.swift; sourceTree = "<group>"; };
+		AA0000100000000000000001 /* GroceryItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryItem.swift; sourceTree = "<group>"; };
+		AA0000120000000000000001 /* RecurringItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecurringItem.swift; sourceTree = "<group>"; };
+		AA0000140000000000000001 /* ItemKnowledge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ItemKnowledge.swift; sourceTree = "<group>"; };
+		AA0000160000000000000001 /* MealModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealModels.swift; sourceTree = "<group>"; };
+		AA0000180000000000000001 /* NotesListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesListView.swift; sourceTree = "<group>"; };
+		AA0000200000000000000001 /* GroceryNoteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryNoteDetailView.swift; sourceTree = "<group>"; };
+		AA0000220000000000000001 /* StorageDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StorageDetailView.swift; sourceTree = "<group>"; };
+		AA0000240000000000000001 /* MealsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MealsView.swift; sourceTree = "<group>"; };
+		AA0000260000000000000001 /* CategorizationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CategorizationService.swift; sourceTree = "<group>"; };
+		AA0000280000000000000001 /* AIRecipeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIRecipeService.swift; sourceTree = "<group>"; };
+		AA0000300000000000000001 /* AppConfiguration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfiguration.swift; sourceTree = "<group>"; };
+		AA0000320000000000000001 /* CloudKitSharingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSharingService.swift; sourceTree = "<group>"; };
+		AA0000340000000000000001 /* V2Services.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V2Services.swift; sourceTree = "<group>"; };
+		AA0000360000000000000001 /* SeedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SeedData.swift; sourceTree = "<group>"; };
+		AA0000380000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		AA0000390000000000000002 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AA78645F2EB004493582974F /* DALLEImageService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DALLEImageService.swift; sourceTree = "<group>"; };
+		AAA372FCE5A0794EABBB0A05 /* RecipeURLService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeURLService.swift; sourceTree = "<group>"; };
+		AAC4C11CE769B442ED90D33A /* VoiceInputParserService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoiceInputParserService.swift; sourceTree = "<group>"; };
+		AACCD1178A575A4CF7B741D1 /* RecipeIngredientSelectionSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecipeIngredientSelectionSheet.swift; sourceTree = "<group>"; };
+		AAE4C93F20027B4DC78DF58D /* SpeechRecognitionService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionService.swift; sourceTree = "<group>"; };
+		B5F23B45794844AAB7B8933D /* FirestoreSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirestoreSyncService.swift; sourceTree = "<group>"; };
+		F87BC7021B9D46DBA57AF3CF /* AuthenticationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		AA0000370000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				20DB1040D87A4873B19BE57E /* FirebaseAuth in Frameworks */,
+				919E4CDB0C374591BA486159 /* FirebaseFirestore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		018FCAB1552640A8BCFA4C47 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				7AE4CA232EF5F297009A7C4E /* Outfit-Black.ttf */,
+				7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */,
+				7AE4CA252EF5F297009A7C4E /* Outfit-ExtraBold.ttf */,
+				7AE4CA262EF5F297009A7C4E /* Outfit-ExtraLight.ttf */,
+				7AE4CA272EF5F297009A7C4E /* Outfit-Light.ttf */,
+				7AE4CA282EF5F297009A7C4E /* Outfit-Medium.ttf */,
+				7AE4CA292EF5F297009A7C4E /* Outfit-Regular.ttf */,
+				7AE4CA2A2EF5F297009A7C4E /* Outfit-SemiBold.ttf */,
+				7AE4CA2B2EF5F297009A7C4E /* Outfit-Thin.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		AA0000390000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				AA0000400000000000000001 /* GroceryNotes */,
+				AA0000410000000000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		AA0000400000000000000001 /* GroceryNotes */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000020000000000000001 /* GroceryNotesApp.swift */,
+				AA0000380000000000000001 /* Info.plist */,
+				AA0000390000000000000002 /* Assets.xcassets */,
+				AA0000420000000000000001 /* Models */,
+				AA0000430000000000000001 /* Views */,
+				AA0000440000000000000001 /* Services */,
+				AA0000450000000000000001 /* Utilities */,
+				7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */,
+				018FCAB1552640A8BCFA4C47 /* Fonts */,
+				AB0B21601D58426A83F6FDDE /* Extensions */,
+				7700BB8135224B3AA75E265B /* GoogleService-Info.plist */,
+			);
+			path = GroceryNotes;
+			sourceTree = "<group>";
+		};
+		AA0000410000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000010000000000000002 /* GroceryNotes.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		AA0000420000000000000001 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000060000000000000001 /* GroceryCategory.swift */,
+				AA0000080000000000000001 /* GroceryNote.swift */,
+				AA0000100000000000000001 /* GroceryItem.swift */,
+				AA0000120000000000000001 /* RecurringItem.swift */,
+				AA0000140000000000000001 /* ItemKnowledge.swift */,
+				AA0000160000000000000001 /* MealModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		AA0000430000000000000001 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */,
+				AACCD1178A575A4CF7B741D1 /* RecipeIngredientSelectionSheet.swift */,
+				AA0000040000000000000001 /* ContentView.swift */,
+				AA0000180000000000000001 /* NotesListView.swift */,
+				AA0000200000000000000001 /* GroceryNoteDetailView.swift */,
+				AA0000220000000000000001 /* StorageDetailView.swift */,
+				AA0000240000000000000001 /* MealsView.swift */,
+				F87BC7021B9D46DBA57AF3CF /* AuthenticationView.swift */,
+				8341C644A09F4AF381762893 /* ShareListSheet.swift */,
+				7CCEC3905F3D498F8FF0B2B2 /* JoinListSheet.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		AA0000440000000000000001 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				AA78645F2EB004493582974F /* DALLEImageService.swift */,
+				AAE4C93F20027B4DC78DF58D /* SpeechRecognitionService.swift */,
+				AAC4C11CE769B442ED90D33A /* VoiceInputParserService.swift */,
+				AAA372FCE5A0794EABBB0A05 /* RecipeURLService.swift */,
+				AA0000260000000000000001 /* CategorizationService.swift */,
+				AA0000280000000000000001 /* AIRecipeService.swift */,
+				AA0000300000000000000001 /* AppConfiguration.swift */,
+				AA0000320000000000000001 /* CloudKitSharingService.swift */,
+				AA0000340000000000000001 /* V2Services.swift */,
+				2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */,
+				B5F23B45794844AAB7B8933D /* FirestoreSyncService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		AA0000450000000000000001 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000360000000000000001 /* SeedData.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		AB0B21601D58426A83F6FDDE /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				20D51C89B4034B33A7D535BA /* Font+Outfit.swift */,
+				1378A1EC5B634CBC8A75DC7C /* View+OutfitFont.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AA0000460000000000000001 /* GroceryNotes */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000470000000000000001 /* Build configuration list for PBXNativeTarget "GroceryNotes" */;
+			buildPhases = (
+				AA0000480000000000000001 /* Sources */,
+				AA0000370000000000000001 /* Frameworks */,
+				AA0000490000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = GroceryNotes;
+			packageProductDependencies = (
+				BA3FD621B6104A0B833753B1 /* FirebaseAuth */,
+				7EDFE0C3738F4BF6BC9BAD80 /* FirebaseFirestore */,
+			);
+			productName = GroceryNotes;
+			productReference = AA0000010000000000000002 /* GroceryNotes.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		AA0000500000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					AA0000460000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = AA0000510000000000000001 /* Build configuration list for PBXProject "GroceryNotes" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = AA0000390000000000000001;
+			packageReferences = (
+				7AA8B7D32EF33B53000CBD35 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+			);
+			productRefGroup = AA0000410000000000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				AA0000460000000000000001 /* GroceryNotes */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		AA0000490000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7AA8B7D22EF1CA81000CBD35 /* Config.xcconfig in Resources */,
+				7AE4CA2C2EF5F297009A7C4E /* Outfit-Bold.ttf in Resources */,
+				7AE4CA2D2EF5F297009A7C4E /* Outfit-Regular.ttf in Resources */,
+				7AE4CA2E2EF5F297009A7C4E /* Outfit-Light.ttf in Resources */,
+				7AE4CA2F2EF5F297009A7C4E /* Outfit-Black.ttf in Resources */,
+				7AE4CA302EF5F297009A7C4E /* Outfit-Thin.ttf in Resources */,
+				7AE4CA312EF5F297009A7C4E /* Outfit-SemiBold.ttf in Resources */,
+				7AE4CA322EF5F297009A7C4E /* Outfit-ExtraBold.ttf in Resources */,
+				7AE4CA332EF5F297009A7C4E /* Outfit-ExtraLight.ttf in Resources */,
+				7AE4CA342EF5F297009A7C4E /* Outfit-Medium.ttf in Resources */,
+				AA0000400000000000000002 /* Assets.xcassets in Resources */,
+				F4382C84EE924942AA4158CB /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		AA0000480000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA2B7963B1E1514FA2977463 /* DALLEImageService.swift in Sources */,
+				AAD25B8DC9E86F42AE97BE07 /* SpeechRecognitionService.swift in Sources */,
+				AA57D6F1B8EE4745DFBAD1B6 /* VoiceInputParserService.swift in Sources */,
+				AAAEA7877D6B444AC4BAB200 /* RecipeURLService.swift in Sources */,
+				AA543A34B1FF9047F3B263A9 /* RecipeIngredientSelectionSheet.swift in Sources */,
+				AA0000010000000000000001 /* GroceryNotesApp.swift in Sources */,
+				AA0000030000000000000001 /* ContentView.swift in Sources */,
+				AA0000050000000000000001 /* GroceryCategory.swift in Sources */,
+				AA0000070000000000000001 /* GroceryNote.swift in Sources */,
+				AA0000090000000000000001 /* GroceryItem.swift in Sources */,
+				AA0000110000000000000001 /* RecurringItem.swift in Sources */,
+				AA0000130000000000000001 /* ItemKnowledge.swift in Sources */,
+				AA0000150000000000000001 /* MealModels.swift in Sources */,
+				AA0000170000000000000001 /* NotesListView.swift in Sources */,
+				AA0000190000000000000001 /* GroceryNoteDetailView.swift in Sources */,
+				AA0000210000000000000001 /* StorageDetailView.swift in Sources */,
+				AA0000230000000000000001 /* MealsView.swift in Sources */,
+				7A02D5722F005A4800D5CCC5 /* PopularRecipesSheet.swift in Sources */,
+				AA0000250000000000000001 /* CategorizationService.swift in Sources */,
+				AA0000270000000000000001 /* AIRecipeService.swift in Sources */,
+				AA0000290000000000000001 /* AppConfiguration.swift in Sources */,
+				AA0000310000000000000001 /* CloudKitSharingService.swift in Sources */,
+				AA0000330000000000000001 /* V2Services.swift in Sources */,
+				AA0000350000000000000001 /* SeedData.swift in Sources */,
+				A05638E2C80443BAAC71E3BF /* Font+Outfit.swift in Sources */,
+				5574E4835C6F466A96FED340 /* View+OutfitFont.swift in Sources */,
+				FC697BE4FFB9466FBAE0B76A /* FirebaseAuthService.swift in Sources */,
+				50840DF1B6674C31979963CE /* FirestoreSyncService.swift in Sources */,
+				75E0F67435834A14BC033FF4 /* AuthenticationView.swift in Sources */,
+				536AC524E9114786948A3601 /* ShareListSheet.swift in Sources */,
+				E126B79AA8B448449FB50FCE /* JoinListSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		AA0000520000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				"CODE_SIGN_IDENTITY[sdk=iphonesimulator*]" = "";
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		AA0000530000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGNING_ALLOWED = NO;
+				CODE_SIGNING_REQUIRED = NO;
+				CODE_SIGN_IDENTITY = "";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		AA0000540000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XH924D93A3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GroceryNotes/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.GroceryNotes;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		AA0000550000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = XH924D93A3;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = GroceryNotes/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.GroceryNotes;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000470000000000000001 /* Build configuration list for PBXNativeTarget "GroceryNotes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000540000000000000001 /* Debug */,
+				AA0000550000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		AA0000510000000000000001 /* Build configuration list for PBXProject "GroceryNotes" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000520000000000000001 /* Debug */,
+				AA0000530000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		7AA8B7D32EF33B53000CBD35 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 12.7.0;
+			};
+		};
+		7E8BC22EDB634648B0F49B20 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		7EDFE0C3738F4BF6BC9BAD80 /* FirebaseFirestore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7E8BC22EDB634648B0F49B20 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseFirestore;
+		};
+		BA3FD621B6104A0B833753B1 /* FirebaseAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7E8BC22EDB634648B0F49B20 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAuth;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = AA0000500000000000000001 /* Project object */;
+}
