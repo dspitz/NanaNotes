@@ -48,6 +48,10 @@ struct GroceryNoteDetailView: View {
     @State private var showingShareSheet = false
     @State private var firebaseListId: String?
 
+    // Scroll to newly added item
+    @State private var scrollToItemId: UUID?
+    @State private var animatingEmojiItemId: UUID?
+
     enum ViewMode: String, CaseIterable {
         case ordered = "Aisles"
         case unordered = "Items"
@@ -66,71 +70,134 @@ struct GroceryNoteDetailView: View {
         note.items.sorted { $0.createdAt < $1.createdAt }
     }
 
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Color(red: 0.882, green: 0.882, blue: 0.882) // #E1E1E1
-                .ignoresSafeArea()
+    private var backgroundColor: some View {
+        Color(red: 0.882, green: 0.882, blue: 0.882)
+            .ignoresSafeArea()
+    }
 
-            VStack(spacing: 0) {
-                // Fixed header with segmented control
-                if !keyboardResponder.isKeyboardVisible {
-                    ViewModeSegmentedControl(selectedMode: $viewMode)
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 8)
-                        .background(Color(red: 0.882, green: 0.882, blue: 0.882)) // #E1E1E1
-                        .transition(.move(edge: .top).combined(with: .opacity))
+    @ViewBuilder
+    private var headerView: some View {
+        if !keyboardResponder.isKeyboardVisible {
+            ViewModeSegmentedControl(selectedMode: $viewMode)
+                .padding(.horizontal, 24)
+                .padding(.vertical, 8)
+                .background(Color(red: 0.882, green: 0.882, blue: 0.882))
+                .transition(.move(edge: .top).combined(with: .opacity))
+        }
+    }
+
+    private var gradientScrim: some View {
+        VStack {
+            Spacer()
+            LinearGradient(
+                gradient: Gradient(colors: [
+                    Color(red: 0.882, green: 0.882, blue: 0.882).opacity(0),
+                    Color(red: 0.882, green: 0.882, blue: 0.882).opacity(1)
+                ]),
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 120)
+        }
+        .ignoresSafeArea(edges: .bottom)
+    }
+
+    private var floatingInputBar: some View {
+        FloatingAddItemBar(
+            newItemName: $newItemName,
+            isInputFocused: _isInputFocused,
+            isRecording: $isRecording,
+            onAdd: {
+                handleInputSubmission()
+            },
+            onMicrophoneTap: toggleRecording
+        )
+    }
+
+    @ViewBuilder
+    private var loadingOverlay: some View {
+        if isLoadingRecipe {
+            ZStack {
+                Color.black.opacity(0.4)
+                    .ignoresSafeArea()
+
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .scaleEffect(1.5)
+                        .tint(.white)
+                    Text("Loading recipe...")
+                        .foregroundStyle(.white)
+                        .font(.outfit(17, weight: .semiBold))
                 }
+                .padding(32)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color(.systemGray6))
+                )
+            }
+            .transition(.opacity)
+        }
+    }
 
-                List {
-                switch viewMode {
-                case .ordered:
-                    ForEach(groupedItems, id: \.category) { category, items in
-                        // Category header as a list row
-                        Text(category.rawValue)
-                            .font(.outfit(52, weight: .medium))
-                            .lineSpacing(64 - 52) // Line height 64px minus font size 52px
-                            .foregroundStyle(Color.black)
-                            .textCase(nil)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.vertical, 8)
-                            .padding(.bottom, -64) // Negative padding to create overlap
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 16, leading: 24, bottom: 8, trailing: 24))
-                            .listRowSeparator(.hidden)
-                            .zIndex(0) // Title at lower z-index
+    private func scrollableContent(proxy: ScrollViewProxy) -> some View {
+        List {
+            switch viewMode {
+            case .ordered:
+                        ForEach(groupedItems, id: \.category) { category, items in
+                            // Category header as a list row
+                            Text(category.rawValue)
+                                .font(.outfit(52, weight: .medium))
+                                .lineSpacing(64 - 52) // Line height 64px minus font size 52px
+                                .foregroundStyle(Color.black)
+                                .textCase(nil)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                                .padding(.vertical, 8)
+                                .padding(.bottom, -64) // Negative padding to create overlap
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 16, leading: 24, bottom: 8, trailing: 24))
+                                .listRowSeparator(.hidden)
+                                .zIndex(0) // Title at lower z-index
 
-                        ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                            let position: ItemRowView.Position = {
-                                if items.count == 1 {
-                                    return .only
-                                } else if index == 0 {
-                                    return .first
-                                } else if index == items.count - 1 {
-                                    return .last
-                                } else {
-                                    return .middle
+                            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                                let position: ItemRowView.Position = {
+                                    if items.count == 1 {
+                                        return .only
+                                    } else if index == 0 {
+                                        return .first
+                                    } else if index == items.count - 1 {
+                                        return .last
+                                    } else {
+                                        return .middle
+                                    }
+                                }()
+
+                                ItemRowView(
+                                    item: item,
+                                    position: position,
+                                    isAppearing: animatingEmojiItemId == item.id,
+                                    onInfoTap: {
+                                        selectedItem = item
+                                        showingStorageDetail = true
+                                    },
+                                    onToggleRecurring: {
+                                        item.toggleRecurring()
+                                        updateRecurringItem(item)
+                                        try? modelContext.save()
+                                    }
+                                )
+                                .id(item.id)
+                                .listRowBackground(Color.clear)
+                                .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                                .listRowSeparator(.hidden)
+                                .zIndex(1) // Items at higher z-index to appear above title
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        deleteItem(item)
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
                                 }
-                            }()
-
-                            ItemRowView(item: item, position: position, onInfoTap: {
-                                selectedItem = item
-                                showingStorageDetail = true
-                            }, onToggleRecurring: {
-                                item.toggleRecurring()
-                                updateRecurringItem(item)
-                                try? modelContext.save()
-                            })
-                            .listRowBackground(Color.clear)
-                            .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
-                            .listRowSeparator(.hidden)
-                            .zIndex(1) // Items at higher z-index to appear above title
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    deleteItem(item)
-                                } label: {
-                                    Label("Delete", systemImage: "trash")
-                                }
-                            }
                             .contextMenu {
                                 Button {
                                     selectedItem = item
@@ -182,14 +249,20 @@ struct GroceryNoteDetailView: View {
                             }
                         }()
 
-                        ItemRowView(item: item, position: position, onInfoTap: {
-                            selectedItem = item
-                            showingStorageDetail = true
-                        }, onToggleRecurring: {
-                            item.toggleRecurring()
-                            updateRecurringItem(item)
-                            try? modelContext.save()
-                        })
+                        ItemRowView(
+                            item: item,
+                            position: position,
+                            isAppearing: animatingEmojiItemId == item.id,
+                            onInfoTap: {
+                                selectedItem = item
+                                showingStorageDetail = true
+                            },
+                            onToggleRecurring: {
+                                item.toggleRecurring()
+                                updateRecurringItem(item)
+                                try? modelContext.save()
+                            }
+                        )
                         .listRowBackground(Color.clear)
                         .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
                         .listRowSeparator(.hidden)
@@ -282,68 +355,52 @@ struct GroceryNoteDetailView: View {
                     }
                 }
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .listSectionSeparator(.hidden)
-            .environment(\.defaultMinListHeaderHeight, 0)
-            .safeAreaInset(edge: .bottom) {
-                Color.clear.frame(height: 80)
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .listSectionSeparator(.hidden)
+        .environment(\.defaultMinListHeaderHeight, 0)
+        .safeAreaInset(edge: .bottom) {
+            Color.clear.frame(height: 180)
+        }
+        .onTapGesture {
+            // Dismiss keyboard when tapping on list
+            isInputFocused = false
+        }
+        .onChange(of: scrollToItemId) { _, newId in
+            if let id = newId {
+                // Set animation state immediately so emoji starts hidden
+                animatingEmojiItemId = id
+
+                // Scroll immediately
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    proxy.scrollTo(id, anchor: .top)
+                }
+
+                // Clear animation state after emoji animation completes
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
+                    animatingEmojiItemId = nil
+                    scrollToItemId = nil
+                }
             }
-            .onTapGesture {
-                // Dismiss keyboard when tapping on list
-                isInputFocused = false
-            }
+        }
+    }
+
+    var body: some View {
+        ZStack(alignment: .bottom) {
+            backgroundColor
+
+            VStack(spacing: 0) {
+                headerView
+
+                ScrollViewReader { proxy in
+                    scrollableContent(proxy: proxy)
+                }
             }
             // End of VStack
 
-            // Gradient scrim underneath input UI
-            VStack {
-                Spacer()
-                LinearGradient(
-                    gradient: Gradient(colors: [
-                        Color(red: 0.882, green: 0.882, blue: 0.882).opacity(0),
-                        Color(red: 0.882, green: 0.882, blue: 0.882).opacity(1)
-                    ]),
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 120)
-            }
-            .ignoresSafeArea(edges: .bottom)
-
-            FloatingAddItemBar(
-                newItemName: $newItemName,
-                isInputFocused: _isInputFocused,
-                isRecording: $isRecording,
-                onAdd: {
-                    handleInputSubmission()
-                },
-                onMicrophoneTap: toggleRecording
-            )
-
-            // Loading overlay
-            if isLoadingRecipe {
-                ZStack {
-                    Color.black.opacity(0.4)
-                        .ignoresSafeArea()
-
-                    VStack(spacing: 16) {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .scaleEffect(1.5)
-                            .tint(.white)
-                        Text("Loading recipe...")
-                            .foregroundStyle(.white)
-                            .font(.outfit(17, weight: .semiBold))
-                    }
-                    .padding(32)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemGray6))
-                    )
-                }
-                .transition(.opacity)
-            }
+            gradientScrim
+            floatingInputBar
+            loadingOverlay
         }
         .animation(.easeInOut(duration: 0.25), value: keyboardResponder.isKeyboardVisible)
         .navigationTitle(note.title)
@@ -418,8 +475,11 @@ struct GroceryNoteDetailView: View {
                 note: note,
                 isLoadingRecipe: $isLoadingRecipe,
                 isLoadingImage: $isLoadingImage,
-                onIngredientsAdded: {
+                onIngredientsAdded: { firstItemId in
                     viewMode = .ordered
+                    if let itemId = firstItemId {
+                        scrollToItemId = itemId
+                    }
                 }
             )
         }
@@ -666,6 +726,11 @@ struct GroceryNoteDetailView: View {
 
                 try? modelContext.save()
                 newItemName = ""
+
+                // Switch to ordered view and scroll to new item
+                viewMode = .ordered
+                scrollToItemId = item.id
+
                 return item
             }
 
@@ -729,6 +794,10 @@ struct GroceryNoteDetailView: View {
                     note.updatedAt = Date()
                     try? modelContext.save()
                     newItemName = ""
+
+                    // Switch to ordered view and scroll to new item
+                    viewMode = .ordered
+                    scrollToItemId = item.id
                 }
             }
         }
@@ -1230,8 +1299,11 @@ struct ItemRowView: View {
 
     @Bindable var item: GroceryItem
     let position: Position
+    var isAppearing: Bool = false
     let onInfoTap: () -> Void
     let onToggleRecurring: () -> Void
+
+    @State private var hasAppeared: Bool = false
 
     private var cornerRadius: RectangleCornerRadii {
         switch position {
@@ -1254,15 +1326,35 @@ struct ItemRowView: View {
                 HStack(spacing: 8) {
                     Text(item.emoji)
                         .font(.system(size: 34))
-                        .scaleEffect(item.isChecked ? 0.001 : 1.0)
-                        .opacity(item.isChecked ? 0 : 1)
-                        .rotationEffect(.degrees(item.isChecked ? -90 : 0))
-                        .offset(x: item.isChecked ? -32 : 0)
-                        .frame(width: item.isChecked ? 0 : nil)
+                        .scaleEffect((item.isChecked || !hasAppeared) ? 0.001 : 1.0)
+                        .opacity((item.isChecked || !hasAppeared) ? 0 : 1)
+                        .rotationEffect(.degrees((item.isChecked || !hasAppeared) ? -90 : 0))
+                        .offset(x: (item.isChecked || !hasAppeared) ? -32 : 0)
+                        .frame(width: (item.isChecked || !hasAppeared) ? 0 : nil)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: hasAppeared)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: item.isChecked)
+                        .onAppear {
+                            if isAppearing {
+                                // This is a newly added item - delay animation until after scroll completes
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                                    // Haptic feedback when emoji animates on
+                                    let impact = UIImpactFeedbackGenerator(style: .light)
+                                    impact.impactOccurred()
+
+                                    hasAppeared = true
+                                }
+                            } else {
+                                // Existing item - show immediately (no animation)
+                                hasAppeared = true
+                            }
+                        }
 
                     Text(item.name)
                         .font(.outfit(16))
                         .strikethrough(item.isChecked)
+                        .scaleEffect((isAppearing && !hasAppeared) ? 0.95 : 1.0)
+                        .opacity((isAppearing && !hasAppeared) ? 0.7 : 1.0)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: hasAppeared)
 
                     if let quantity = item.quantity {
                         Text("(\(quantity))")
@@ -1328,6 +1420,7 @@ struct ItemRowView: View {
         .foregroundStyle(.primary)
     }
 }
+
 
 struct FloatingAddItemBar: View {
     @Binding var newItemName: String

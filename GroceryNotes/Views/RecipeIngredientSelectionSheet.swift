@@ -9,12 +9,12 @@ struct RecipeIngredientSelectionSheet: View {
     let note: GroceryNote
     @Binding var isLoadingRecipe: Bool
     @Binding var isLoadingImage: Bool
-    let onIngredientsAdded: () -> Void
+    let onIngredientsAdded: (UUID?) -> Void
 
     @State private var selectedIngredients: Set<UUID>
     @State private var isAddingIngredients = false
 
-    init(recipe: Binding<MealRecipe?>, note: GroceryNote, isLoadingRecipe: Binding<Bool>, isLoadingImage: Binding<Bool>, onIngredientsAdded: @escaping () -> Void = {}) {
+    init(recipe: Binding<MealRecipe?>, note: GroceryNote, isLoadingRecipe: Binding<Bool>, isLoadingImage: Binding<Bool>, onIngredientsAdded: @escaping (UUID?) -> Void = { _ in }) {
         self._recipe = recipe
         self.note = note
         self._isLoadingRecipe = isLoadingRecipe
@@ -299,6 +299,7 @@ struct RecipeIngredientSelectionSheet: View {
 
                 // Create all items in a single MainActor block
                 await MainActor.run {
+                    var firstItemId: UUID?
                     for categorizedItem in categorizedItems {
                         let item = GroceryItem(
                             name: categorizedItem.name,
@@ -312,13 +313,18 @@ struct RecipeIngredientSelectionSheet: View {
                         )
                         item.note = note
                         note.items.append(item)
+
+                        // Track first item for scrolling
+                        if firstItemId == nil {
+                            firstItemId = item.id
+                        }
                     }
 
                     note.updatedAt = Date()
                     try? modelContext.save()
                     isAddingIngredients = false
                     dismiss()
-                    onIngredientsAdded()
+                    onIngredientsAdded(firstItemId)
                 }
 
                 // Optionally fetch AI storage info in background (don't block dismissal)
