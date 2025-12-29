@@ -64,7 +64,7 @@ struct MealCardView: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -75,7 +75,7 @@ struct MealCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     Image(systemName: "photo")
                                         .font(.largeTitle)
@@ -90,7 +90,7 @@ struct MealCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     ProgressView()
                                 }
@@ -107,7 +107,7 @@ struct MealCardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                         .overlay {
                             Image(systemName: "fork.knife")
                                 .font(.largeTitle)

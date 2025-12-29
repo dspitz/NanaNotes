@@ -191,12 +191,12 @@ struct PopularRecipeCard: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
                                 .fill(Color.gray.opacity(0.2))
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     Image(systemName: "photo")
                                         .font(.largeTitle)
@@ -205,7 +205,7 @@ struct PopularRecipeCard: View {
                         case .empty:
                             Rectangle()
                                 .fill(Color.gray.opacity(0.1))
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     ProgressView()
                                 }
@@ -223,7 +223,7 @@ struct PopularRecipeCard: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                         .overlay {
                             Image(systemName: "fork.knife")
                                 .font(.largeTitle)
@@ -271,7 +271,7 @@ struct PopularRecipeCardSkeleton: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ShimmerView()
-                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
 
             VStack(alignment: .leading, spacing: 6) {
                 ShimmerView()

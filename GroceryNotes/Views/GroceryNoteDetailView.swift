@@ -417,7 +417,10 @@ struct GroceryNoteDetailView: View {
                 recipe: $currentRecipe,
                 note: note,
                 isLoadingRecipe: $isLoadingRecipe,
-                isLoadingImage: $isLoadingImage
+                isLoadingImage: $isLoadingImage,
+                onIngredientsAdded: {
+                    viewMode = .ordered
+                }
             )
         }
         .sheet(isPresented: $showingPopularRecipesSheet) {
@@ -1568,7 +1571,7 @@ struct MealDraftCardView: View {
                             image
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -1579,7 +1582,7 @@ struct MealDraftCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     Image(systemName: "photo")
                                         .font(.largeTitle)
@@ -1594,7 +1597,7 @@ struct MealDraftCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                                 .overlay {
                                     ProgressView()
                                 }
@@ -1611,7 +1614,7 @@ struct MealDraftCardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
                         .overlay {
                             Image(systemName: "fork.knife")
                                 .font(.largeTitle)

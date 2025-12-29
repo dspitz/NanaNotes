@@ -9,15 +9,17 @@ struct RecipeIngredientSelectionSheet: View {
     let note: GroceryNote
     @Binding var isLoadingRecipe: Bool
     @Binding var isLoadingImage: Bool
+    let onIngredientsAdded: () -> Void
 
     @State private var selectedIngredients: Set<UUID>
     @State private var isAddingIngredients = false
 
-    init(recipe: Binding<MealRecipe?>, note: GroceryNote, isLoadingRecipe: Binding<Bool>, isLoadingImage: Binding<Bool>) {
+    init(recipe: Binding<MealRecipe?>, note: GroceryNote, isLoadingRecipe: Binding<Bool>, isLoadingImage: Binding<Bool>, onIngredientsAdded: @escaping () -> Void = {}) {
         self._recipe = recipe
         self.note = note
         self._isLoadingRecipe = isLoadingRecipe
         self._isLoadingImage = isLoadingImage
+        self.onIngredientsAdded = onIngredientsAdded
         // All ingredients selected by default, except staples (salt, pepper, water)
         if let recipe = recipe.wrappedValue {
             let staplesKeywords = ["salt", "pepper", "black pepper", "sea salt", "kosher salt", "water"]
@@ -316,6 +318,7 @@ struct RecipeIngredientSelectionSheet: View {
                     try? modelContext.save()
                     isAddingIngredients = false
                     dismiss()
+                    onIngredientsAdded()
                 }
 
                 // Optionally fetch AI storage info in background (don't block dismissal)
@@ -365,15 +368,9 @@ struct IngredientCheckRow: View {
             HStack(spacing: 8) {
                 Text(ingredient.emoji)
                     .font(.system(size: 34))
-                    .scaleEffect(isSelected ? 0.001 : 1.0)
-                    .opacity(isSelected ? 0 : 1)
-                    .rotationEffect(.degrees(isSelected ? -90 : 0))
-                    .offset(x: isSelected ? -32 : 0)
-                    .frame(width: isSelected ? 0 : nil)
 
                 Text(ingredient.name)
                     .font(.outfit(16))
-                    .strikethrough(isSelected)
 
                 if !ingredient.quantity.isEmpty {
                     Text("(\(ingredient.quantity))")
@@ -381,9 +378,6 @@ struct IngredientCheckRow: View {
                         .font(.outfit(15))
                 }
             }
-            .padding(.leading, isSelected ? 4 : 0)
-            .opacity(isSelected ? 0.4 : 1.0)
-            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isSelected)
 
             Spacer()
 
@@ -421,17 +415,6 @@ struct IngredientCheckRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(
-            ZStack {
-                // Backdrop blur effect
-                VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-
-                // White stroke border
-                RoundedRectangle(cornerRadius: 12)
-                    .strokeBorder(.white, lineWidth: 1)
-            }
-        )
     }
 }
 
