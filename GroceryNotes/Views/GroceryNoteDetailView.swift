@@ -422,9 +422,23 @@ struct GroceryNoteDetailView: View {
         }
         .sheet(isPresented: $showingPopularRecipesSheet) {
             PopularRecipesSheet(searchQuery: pendingMealIdea ?? "") { selectedRecipe in
+                pendingMealIdea = nil
                 currentRecipe = selectedRecipe
+
+                // If recipe has no ingredients, it's partial data - show loading state
+                if selectedRecipe.ingredients.isEmpty {
+                    isLoadingRecipe = true
+                } else {
+                    isLoadingRecipe = false
+                }
+
                 showingRecipeSheet = true
                 viewMode = .meals
+            }
+        }
+        .onChange(of: showingPopularRecipesSheet) { _, isShowing in
+            if !isShowing {
+                pendingMealIdea = nil
             }
         }
         .alert("Microphone Permission Required", isPresented: $showingPermissionAlert) {
@@ -456,7 +470,6 @@ struct GroceryNoteDetailView: View {
                 if let mealIdea = pendingMealIdea {
                     searchPopularRecipes(mealIdea)
                 }
-                pendingMealIdea = nil
             }
 
             Button("Add to List as Item") {
@@ -1113,6 +1126,7 @@ struct GroceryNoteDetailView: View {
             return
         }
 
+        pendingMealIdea = mealName
         newItemName = ""
         showingPopularRecipesSheet = true
     }
@@ -1125,7 +1139,7 @@ struct GroceryNoteDetailView: View {
 
         // Show sheet immediately with loading states
         isLoadingRecipe = true
-        isLoadingImage = true
+        isLoadingImage = false  // Skip image generation
         currentRecipe = nil
         newItemName = ""
         showingRecipeSheet = true
@@ -1133,33 +1147,33 @@ struct GroceryNoteDetailView: View {
 
         Task {
             do {
-                // Generate recipe (ingredients, instructions, etc.)
+                // Generate recipe (using optimized Phase 1 settings)
                 let recipeService = AIRecipeService(apiKey: AppConfiguration.openAIAPIKey)
                 let aiResponse = try await recipeService.generateRecipe(for: mealName)
-                var recipe = aiResponse.toMealRecipe()
+                let recipe = aiResponse.toMealRecipe()
 
-                // Update UI with recipe content (image still loading)
+                // Update UI with recipe content
                 await MainActor.run {
                     currentRecipe = recipe
                     isLoadingRecipe = false
                 }
 
-                // Generate image with DALL-E in background (slower)
-                do {
-                    let imageService = DALLEImageService(apiKey: AppConfiguration.openAIAPIKey)
-                    let imageURL = try await imageService.generateRecipeImage(for: recipe.title)
-                    recipe.imageURL = imageURL
-
-                    await MainActor.run {
-                        currentRecipe = recipe
-                        isLoadingImage = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        isLoadingImage = false
-                    }
-                    print("Failed to generate image: \(error.localizedDescription)")
-                }
+                // Image generation disabled for speed
+                // do {
+                //     let imageService = DALLEImageService(apiKey: AppConfiguration.openAIAPIKey)
+                //     let imageURL = try await imageService.generateRecipeImage(for: recipe.title)
+                //     recipe.imageURL = imageURL
+                //
+                //     await MainActor.run {
+                //         currentRecipe = recipe
+                //         isLoadingImage = false
+                //     }
+                // } catch {
+                //     await MainActor.run {
+                //         isLoadingImage = false
+                //     }
+                //     print("Failed to generate image: \(error.localizedDescription)")
+                // }
 
                 // Save the meal draft
                 await MainActor.run {
@@ -1177,7 +1191,11 @@ struct GroceryNoteDetailView: View {
                     isLoadingRecipe = false
                     isLoadingImage = false
                     showingRecipeSheet = false
-                    print("Failed to generate recipe: \(error.localizedDescription)")
+                    print("❌ RECIPE ERROR: \(error)")
+                    print("❌ ERROR DESCRIPTION: \(error.localizedDescription)")
+                    if let decodingError = error as? DecodingError {
+                        print("❌ DECODING ERROR: \(decodingError)")
+                    }
                 }
             }
         }
@@ -1549,8 +1567,8 @@ struct MealDraftCardView: View {
                         case .success(let image):
                             image
                                 .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 200)
+                                .scaledToFill()
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -1561,7 +1579,7 @@ struct MealDraftCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .overlay {
                                     Image(systemName: "photo")
                                         .font(.largeTitle)
@@ -1576,7 +1594,7 @@ struct MealDraftCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .overlay {
                                     ProgressView()
                                 }
@@ -1593,7 +1611,7 @@ struct MealDraftCardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(height: 200)
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                         .overlay {
                             Image(systemName: "fork.knife")
                                 .font(.largeTitle)

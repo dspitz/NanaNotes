@@ -40,20 +40,20 @@ struct RecipeIngredientSelectionSheet: View {
                         // Recipe Image with shimmer
                         if isLoadingImage || recipe?.imageURL == nil {
                             ShimmerView()
-                                .frame(height: 240)
+                                .frame(width: UIScreen.main.bounds.width, height: 240)
                         } else if let imageURL = recipe?.imageURL, let url = URL(string: imageURL) {
                             AsyncImage(url: url) { phase in
                                 switch phase {
                                 case .success(let image):
                                     image
                                         .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                        .frame(height: 240)
+                                        .scaledToFill()
+                                        .frame(width: UIScreen.main.bounds.width, height: 240)
                                         .clipped()
                                 case .failure(_):
                                     Rectangle()
                                         .fill(Color.gray.opacity(0.2))
-                                        .frame(height: 240)
+                                        .frame(width: UIScreen.main.bounds.width, height: 240)
                                         .overlay {
                                             Image(systemName: "photo")
                                                 .font(.largeTitle)
@@ -61,7 +61,7 @@ struct RecipeIngredientSelectionSheet: View {
                                         }
                                 case .empty:
                                     ShimmerView()
-                                        .frame(height: 240)
+                                        .frame(width: UIScreen.main.bounds.width, height: 240)
                                 @unknown default:
                                     EmptyView()
                                 }
@@ -361,30 +361,160 @@ struct IngredientCheckRow: View {
     let onToggle: () -> Void
 
     var body: some View {
-        Button {
-            onToggle()
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(.title3)
-                    .foregroundStyle(isSelected ? .blue : .gray)
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Text(ingredient.emoji)
+                    .font(.system(size: 34))
+                    .scaleEffect(isSelected ? 0.001 : 1.0)
+                    .opacity(isSelected ? 0 : 1)
+                    .rotationEffect(.degrees(isSelected ? -90 : 0))
+                    .offset(x: isSelected ? -32 : 0)
+                    .frame(width: isSelected ? 0 : nil)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(ingredient.name)
-                        .font(.body)
-                        .foregroundStyle(.primary)
+                Text(ingredient.name)
+                    .font(.outfit(16))
+                    .strikethrough(isSelected)
 
-                    Text(ingredient.quantity)
-                        .font(.caption)
+                if !ingredient.quantity.isEmpty {
+                    Text("(\(ingredient.quantity))")
                         .foregroundStyle(.secondary)
+                        .font(.outfit(15))
                 }
-
-                Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
-            .contentShape(Rectangle())
+            .padding(.leading, isSelected ? 4 : 0)
+            .opacity(isSelected ? 0.4 : 1.0)
+            .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isSelected)
+
+            Spacer()
+
+            ZStack {
+                // Background circle
+                Circle()
+                    .fill(isSelected ? Color.black : Color(red: 0.851, green: 0.851, blue: 0.851))
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 1)
+                    )
+
+                // Checkmark icon
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .overlay(alignment: .center) {
+                Button {
+                    // Minimal haptic feedback
+                    let impact = UIImpactFeedbackGenerator(style: .light)
+                    impact.impactOccurred()
+
+                    onToggle()
+                } label: {
+                    Color.clear
+                        .frame(width: 68, height: 58)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(
+            ZStack {
+                // Backdrop blur effect
+                VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+
+                // White stroke border
+                RoundedRectangle(cornerRadius: 12)
+                    .strokeBorder(.white, lineWidth: 1)
+            }
+        )
+    }
+}
+
+// MARK: - MealIngredient Extension for Emoji
+
+extension MealIngredient {
+    var emoji: String {
+        let itemEmojiMap: [String: String] = [
+            // Produce
+            "apple": "🍎", "apples": "🍎", "banana": "🍌", "bananas": "🍌",
+            "orange": "🍊", "oranges": "🍊", "lemon": "🍋", "lemons": "🍋", "lime": "🍋",
+            "strawberry": "🍓", "strawberries": "🍓", "grapes": "🍇", "grape": "🍇",
+            "watermelon": "🍉", "peach": "🍑", "peaches": "🍑", "cherry": "🍒", "cherries": "🍒",
+            "pear": "🍐", "pears": "🍐", "pineapple": "🍍", "mango": "🥭", "mangos": "🥭", "mangoes": "🥭",
+            "avocado": "🥑", "avocados": "🥑", "tomato": "🍅", "tomatoes": "🍅",
+            "potato": "🥔", "potatoes": "🥔", "carrot": "🥕", "carrots": "🥕", "corn": "🌽",
+            "pepper": "🌶️", "peppers": "🌶️", "bell pepper": "🫑", "bell peppers": "🫑",
+            "cucumber": "🥒", "cucumbers": "🥒", "broccoli": "🥦", "lettuce": "🥬",
+            "mushroom": "🍄", "mushrooms": "🍄", "garlic": "🧄", "onion": "🧅", "onions": "🧅",
+            "ginger": "🫚", "cilantro": "🌿", "parsley": "🌿", "basil": "🌿",
+
+            // Meat & Protein
+            "chicken": "🐔", "chicken breast": "🐔", "turkey": "🦃", "bacon": "🥓",
+            "steak": "🥩", "beef": "🥩", "ground beef": "🥩", "pork": "🐷", "pork chops": "🐷",
+            "ham": "🍖", "sausage": "🌭", "hot dog": "🌭", "hot dogs": "🌭",
+            "fish": "🐟", "salmon": "🐟", "tuna": "🐟", "shrimp": "🦐",
+            "egg": "🥚", "eggs": "🥚",
+
+            // Dairy
+            "milk": "🥛", "almond milk": "🥛", "oat milk": "🥛", "cheese": "🧀",
+            "butter": "🧈", "yogurt": "🥛", "cream": "🥛", "heavy cream": "🥛", "sour cream": "🥛",
+            "ice cream": "🍦",
+
+            // Bakery
+            "bread": "🍞", "bagel": "🥯", "bagels": "🥯", "croissant": "🥐", "croissants": "🥐",
+            "baguette": "🥖", "donut": "🍩", "donuts": "🍩", "cookie": "🍪", "cookies": "🍪",
+            "cake": "🎂", "pie": "🥧", "muffin": "🧁", "muffins": "🧁",
+
+            // Pantry
+            "rice": "🍚", "pasta": "🍝", "spaghetti": "🍝", "noodles": "🍝", "cereal": "🥣",
+            "soup": "🍲", "canned soup": "🥫", "beans": "🫘", "canned beans": "🫘",
+            "peanut butter": "🥜", "honey": "🍯", "oil": "🫗", "olive oil": "🫗", "vegetable oil": "🫗",
+            "salt": "🧂", "sugar": "🧂", "flour": "🌾", "spice": "🌶️", "cumin": "🌶️",
+            "turmeric": "🌶️", "coriander": "🌶️", "paprika": "🌶️", "chili": "🌶️",
+            "garam masala": "🌶️", "curry": "🍛",
+
+            // Beverages
+            "coffee": "☕", "coffee beans": "☕", "tea": "🍵",
+            "juice": "🧃", "orange juice": "🧃", "apple juice": "🧃",
+            "soda": "🥤", "pop": "🥤", "water": "💧", "bottled water": "💧",
+            "beer": "🍺", "wine": "🍷", "red wine": "🍷", "white wine": "🍷",
+
+            // Frozen
+            "frozen pizza": "🍕", "pizza": "🍕"
+        ]
+
+        let normalized = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+
+        // Try exact match
+        if let emoji = itemEmojiMap[normalized] {
+            return emoji
+        }
+
+        // Try partial match
+        for (key, emoji) in itemEmojiMap {
+            if normalized.contains(key) {
+                return emoji
+            }
+        }
+
+        // Fallback based on category hint
+        if let category = categoryHint {
+            switch category.lowercased() {
+            case "produce": return "🥬"
+            case "meat": return "🥩"
+            case "dairy": return "🥛"
+            case "pantry": return "🥫"
+            case "bakery": return "🍞"
+            default: return "🛒"
+            }
+        }
+
+        // Final fallback
+        return "🛒"
     }
 }

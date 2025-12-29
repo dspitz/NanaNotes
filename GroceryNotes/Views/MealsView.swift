@@ -63,8 +63,8 @@ struct MealCardView: View {
                         case .success(let image):
                             image
                                 .resizable()
-                                .aspectRatio(contentMode: .fill)
-                                .frame(height: 200)
+                                .scaledToFill()
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .clipped()
                         case .failure(_):
                             Rectangle()
@@ -75,7 +75,7 @@ struct MealCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .overlay {
                                     Image(systemName: "photo")
                                         .font(.largeTitle)
@@ -90,7 +90,7 @@ struct MealCardView: View {
                                         endPoint: .bottomTrailing
                                     )
                                 )
-                                .frame(height: 200)
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                                 .overlay {
                                     ProgressView()
                                 }
@@ -107,7 +107,7 @@ struct MealCardView: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .frame(height: 200)
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
                         .overlay {
                             Image(systemName: "fork.knife")
                                 .font(.largeTitle)

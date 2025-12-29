@@ -19,27 +19,12 @@ actor AIRecipeService {
 
     func generateRecipe(for mealName: String) async throws -> AIRecipeResponse {
         let systemPrompt = """
-        You are a helpful recipe assistant. Generate a recipe with common US grocery ingredients.
-        Return ONLY valid JSON matching this exact schema. Do not include any markdown, code blocks, or explanatory text.
-
-        {
-          "recipe": {
-            "title": "Recipe name",
-            "description": "Brief description",
-            "servings": 4,
-            "estimatedTimeMinutes": 30,
-            "ingredients": [
-              {"name": "ingredient name", "quantity": "amount", "categoryHint": "Produce|Meat|Dairy|Pantry|etc"}
-            ],
-            "steps": ["step 1", "step 2"]
-          },
-          "alternatives": []
-        }
-
-        Use realistic cooking times and common ingredients. Keep the recipe simple and practical.
+        Return JSON with this structure:
+        {"recipe":{"title":"","description":"","servings":4,"estimatedTimeMinutes":30,"ingredients":[{"name":"","quantity":"","categoryHint":"Produce"}],"steps":[""]}}
+        Use common US ingredients.
         """
 
-        let userPrompt = "Generate a recipe for: \(mealName)"
+        let userPrompt = "Recipe for: \(mealName)"
 
         let requestBody: [String: Any] = [
             "model": "gpt-4o-mini",
@@ -47,7 +32,8 @@ actor AIRecipeService {
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": userPrompt]
             ],
-            "temperature": 0.7,
+            "temperature": 0.3,
+            "max_tokens": 1200,
             "response_format": ["type": "json_object"]
         ]
 
@@ -72,85 +58,140 @@ actor AIRecipeService {
         guard let content = openAIResponse.choices.first?.message.content else {
             throw AIServiceError.noContent
         }
+
+        print("📝 RAW JSON RESPONSE:")
+        print(content)
+        print("📝 END RAW JSON")
 
         let contentData = content.data(using: .utf8)!
         return try JSONDecoder().decode(AIRecipeResponse.self, from: contentData)
     }
 
-    func searchPopularRecipes(for query: String) async throws -> PopularRecipesResponse {
-        let systemPrompt = """
-        You are a recipe expert with knowledge of popular recipes from trusted sources like Bon Appétit, NYT Cooking, Serious Eats, and AllRecipes.
+    func generateRecipeStreaming(for mealName: String) -> AsyncThrowingStream<RecipeStreamChunk, Error> {
+        AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let systemPrompt = """
+                    You are a recipe assistant. Generate a practical recipe with common US ingredients.
+                    Return JSON matching this schema (no markdown or code blocks):
 
-        For the user's query, return 6 REAL popular recipes that are highly-rated and commonly made. Use your knowledge of actual popular recipes from these trusted sources.
+                    {
+                      "recipe": {
+                        "title": "string",
+                        "description": "string",
+                        "servings": number,
+                        "estimatedTimeMinutes": number,
+                        "ingredients": [{"name": "string", "quantity": "string", "categoryHint": "Produce|Meat|Dairy|Pantry"}],
+                        "steps": ["string"]
+                      }
+                    }
 
-        Return ONLY valid JSON matching this exact schema. Do not include any markdown, code blocks, or explanatory text.
+                    Keep recipes simple and realistic.
+                    """
 
-        {
-          "recipes": [
-            {
-              "title": "Recipe name (from real popular recipe)",
-              "description": "Brief 1-2 sentence description",
-              "servings": 4,
-              "estimatedTimeMinutes": 30,
-              "popularityScore": 4.5,
-              "popularitySource": "Highly rated on Bon Appétit",
-              "ingredients": [
-                {"name": "ingredient", "quantity": "amount", "categoryHint": "Produce|Meat|Dairy|Pantry|etc"}
-              ],
-              "steps": ["step 1", "step 2"],
-              "tags": ["Italian", "Comfort Food"],
-              "imagePrompt": "Brief description for generating recipe image"
+                    let userPrompt = "Generate a recipe for: \(mealName)"
+
+                    let requestBody: [String: Any] = [
+                        "model": "gpt-4o-mini",
+                        "messages": [
+                            ["role": "system", "content": systemPrompt],
+                            ["role": "user", "content": userPrompt]
+                        ],
+                        "temperature": 0.5,
+                        "max_tokens": 1500,
+                        "stream": true,
+                        "response_format": ["type": "json_object"]
+                    ]
+
+                    var request = URLRequest(url: URL(string: baseURL)!)
+                    request.httpMethod = "POST"
+                    request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+                    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+
+                    guard let httpResponse = response as? HTTPURLResponse else {
+                        throw AIServiceError.invalidResponse
+                    }
+
+                    guard httpResponse.statusCode == 200 else {
+                        throw AIServiceError.apiError(statusCode: httpResponse.statusCode, message: "Streaming request failed")
+                    }
+
+                    var accumulatedContent = ""
+
+                    for try await line in bytes.lines {
+                        if line.hasPrefix("data: ") {
+                            let jsonString = String(line.dropFirst(6))
+
+                            if jsonString == "[DONE]" {
+                                // Try final parse
+                                if let data = accumulatedContent.data(using: .utf8),
+                                   let finalRecipe = try? JSONDecoder().decode(AIRecipeResponse.self, from: data) {
+                                    continuation.yield(.complete(finalRecipe))
+                                }
+                                continuation.finish()
+                                return
+                            }
+
+                            // Parse the SSE delta
+                            if let data = jsonString.data(using: .utf8),
+                               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                               let choices = json["choices"] as? [[String: Any]],
+                               let delta = choices.first?["delta"] as? [String: Any],
+                               let content = delta["content"] as? String {
+
+                                accumulatedContent += content
+
+                                // Try to parse the accumulated JSON periodically
+                                if let data = accumulatedContent.data(using: .utf8),
+                                   let partial = try? JSONDecoder().decode(AIRecipeResponse.self, from: data) {
+                                    continuation.yield(.chunk(partial))
+                                }
+                            }
+                        }
+                    }
+
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
             }
-          ]
+        }
+    }
+
+    func searchPopularRecipes(for query: String) async throws -> PopularRecipesResponse {
+        guard !AppConfiguration.googleSearchAPIKey.isEmpty,
+              !AppConfiguration.googleSearchEngineID.isEmpty else {
+            throw AIServiceError.missingConfiguration
         }
 
-        Requirements:
-        - Return exactly 6 recipes
-        - Each recipe should be realistic and actually popular (not made up)
-        - Popularity scores between 3.5-5.0 (only suggest good recipes)
-        - Include variety in cooking times and difficulty
-        - Use common US grocery ingredients
-        - Provide realistic cooking times
-        - Include helpful tags for categorization
-        - ImagePrompt should describe the dish for DALL-E generation (e.g., "Creamy chicken parmesan with melted mozzarella on a white plate")
-        """
+        // Use Google Custom Search to find real recipe URLs
+        let googleSearch = GoogleSearchService(
+            apiKey: AppConfiguration.googleSearchAPIKey,
+            searchEngineID: AppConfiguration.googleSearchEngineID
+        )
+        let searchResults = try await googleSearch.searchRecipes(for: query, count: 6)
 
-        let userPrompt = "Find 6 popular recipes for: \(query)"
-
-        let requestBody: [String: Any] = [
-            "model": "gpt-4o-mini",
-            "messages": [
-                ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": userPrompt]
-            ],
-            "temperature": 0.8,
-            "response_format": ["type": "json_object"]
-        ]
-
-        var request = URLRequest(url: URL(string: baseURL)!)
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw AIServiceError.invalidResponse
+        // Convert to PopularRecipesResponse format
+        let recipes = searchResults.map { result in
+            PopularRecipesResponse.PopularRecipeData(
+                title: result.title,
+                description: result.description,
+                sourceURL: result.sourceURL,
+                sourceName: result.sourceName,
+                servings: 4,  // Default - will be filled in when recipe is extracted
+                estimatedTimeMinutes: 30,  // Default
+                popularityScore: 4.5,  // Default
+                imageURL: result.imageURL,
+                ingredients: nil,  // Will be filled when tapped
+                steps: nil,  // Will be filled when tapped
+                tags: nil
+            )
         }
 
-        guard httpResponse.statusCode == 200 else {
-            let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
-            throw AIServiceError.apiError(statusCode: httpResponse.statusCode, message: errorMessage)
-        }
-
-        let openAIResponse = try JSONDecoder().decode(OpenAIResponse.self, from: data)
-        guard let content = openAIResponse.choices.first?.message.content else {
-            throw AIServiceError.noContent
-        }
-
-        let contentData = content.data(using: .utf8)!
-        return try JSONDecoder().decode(PopularRecipesResponse.self, from: contentData)
+        return PopularRecipesResponse(recipes: recipes)
     }
 }
 
@@ -228,10 +269,16 @@ private struct OpenAIResponse: Codable {
     var choices: [Choice]
 }
 
+enum RecipeStreamChunk {
+    case chunk(AIRecipeResponse)
+    case complete(AIRecipeResponse)
+}
+
 enum AIServiceError: LocalizedError {
     case invalidResponse
     case apiError(statusCode: Int, message: String)
     case noContent
+    case missingConfiguration
 
     var errorDescription: String? {
         switch self {
@@ -241,6 +288,8 @@ enum AIServiceError: LocalizedError {
             return "AI service error (\(code)): \(message)"
         case .noContent:
             return "No content returned from AI service"
+        case .missingConfiguration:
+            return "Google Search API not configured"
         }
     }
 }

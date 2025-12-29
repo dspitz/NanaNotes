@@ -115,7 +115,7 @@ struct MealIngredient: Codable, Identifiable {
 
 struct AIRecipeResponse: Codable {
     var recipe: AIRecipeData
-    var alternatives: [AIRecipeData]
+    var alternatives: [AIRecipeData]?
 
     struct AIRecipeData: Codable {
         var title: String
@@ -151,7 +151,7 @@ struct AIRecipeResponse: Codable {
     }
 
     func toAlternatives() -> [MealRecipe] {
-        alternatives.map { alt in
+        alternatives?.map { alt in
             MealRecipe(
                 title: alt.title,
                 description: alt.description,
@@ -164,7 +164,7 @@ struct AIRecipeResponse: Codable {
                 tags: alt.tags,
                 imageURL: alt.imageURL
             )
-        }
+        } ?? []
     }
 }
 
@@ -174,14 +174,15 @@ struct PopularRecipesResponse: Codable {
     struct PopularRecipeData: Codable {
         var title: String
         var description: String
+        var sourceURL: String
+        var sourceName: String
         var servings: Int
         var estimatedTimeMinutes: Int
         var popularityScore: Double
-        var popularitySource: String
-        var ingredients: [AIRecipeResponse.AIRecipeData.AIIngredientData]
-        var steps: [String]
+        var imageURL: String?
+        var ingredients: [AIRecipeResponse.AIRecipeData.AIIngredientData]?
+        var steps: [String]?
         var tags: [String]?
-        var imagePrompt: String?
     }
 
     func toMealRecipes() -> [MealRecipe] {
@@ -191,20 +192,19 @@ struct PopularRecipesResponse: Codable {
                 description: recipe.description,
                 servings: recipe.servings,
                 estimatedTimeMinutes: recipe.estimatedTimeMinutes,
-                ingredients: recipe.ingredients.map { ing in
+                ingredients: (recipe.ingredients ?? []).map { ing in
                     MealIngredient(
                         name: ing.name,
                         quantity: ing.quantity,
                         categoryHint: ing.categoryHint
                     )
                 },
-                steps: recipe.steps,
+                steps: recipe.steps ?? [],
                 tags: recipe.tags,
-                imageURL: nil,
-                sourceURL: nil,
+                imageURL: recipe.imageURL,
+                sourceURL: recipe.sourceURL,
                 popularityScore: recipe.popularityScore,
-                popularitySource: recipe.popularitySource,
-                imagePrompt: recipe.imagePrompt
+                popularitySource: recipe.sourceName
             )
         }
     }

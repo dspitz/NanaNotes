@@ -13,6 +13,7 @@
 		5574E4835C6F466A96FED340 /* View+OutfitFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1378A1EC5B634CBC8A75DC7C /* View+OutfitFont.swift */; };
 		75E0F67435834A14BC033FF4 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87BC7021B9D46DBA57AF3CF /* AuthenticationView.swift */; };
 		7A02D5722F005A4800D5CCC5 /* PopularRecipesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */; };
+		7A02D5742F022BB300D5CCC5 /* GoogleSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A02D5732F022BB300D5CCC5 /* GoogleSearchService.swift */; };
 		7AA8B7D22EF1CA81000CBD35 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */; };
 		7AE4CA2C2EF5F297009A7C4E /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */; };
 		7AE4CA2D2EF5F297009A7C4E /* Outfit-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA292EF5F297009A7C4E /* Outfit-Regular.ttf */; };
@@ -60,6 +61,7 @@
 		2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthService.swift; sourceTree = "<group>"; };
 		7700BB8135224B3AA75E265B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularRecipesSheet.swift; sourceTree = "<group>"; };
+		7A02D5732F022BB300D5CCC5 /* GoogleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSearchService.swift; sourceTree = "<group>"; };
 		7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		7AE4CA232EF5F297009A7C4E /* Outfit-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Black.ttf"; sourceTree = "<group>"; };
 		7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 		AA0000440000000000000001 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				7A02D5732F022BB300D5CCC5 /* GoogleSearchService.swift */,
 				AA78645F2EB004493582974F /* DALLEImageService.swift */,
 				AAE4C93F20027B4DC78DF58D /* SpeechRecognitionService.swift */,
 				AAC4C11CE769B442ED90D33A /* VoiceInputParserService.swift */,
@@ -341,6 +344,7 @@
 				AA0000310000000000000001 /* CloudKitSharingService.swift in Sources */,
 				AA0000330000000000000001 /* V2Services.swift in Sources */,
 				AA0000350000000000000001 /* SeedData.swift in Sources */,
+				7A02D5742F022BB300D5CCC5 /* GoogleSearchService.swift in Sources */,
 				A05638E2C80443BAAC71E3BF /* Font+Outfit.swift in Sources */,
 				5574E4835C6F466A96FED340 /* View+OutfitFont.swift in Sources */,
 				FC697BE4FFB9466FBAE0B76A /* FirebaseAuthService.swift in Sources */,

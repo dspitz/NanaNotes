@@ -11,7 +11,6 @@ struct PopularRecipesSheet: View {
     @State private var recipes: [MealRecipe] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var imageGenerationProgress: [UUID: Bool] = [:]
 
     var body: some View {
         NavigationStack {
@@ -70,7 +69,6 @@ struct PopularRecipesSheet: View {
                                 ForEach(recipes) { recipe in
                                     PopularRecipeCard(
                                         recipe: recipe,
-                                        isLoadingImage: imageGenerationProgress[recipe.id] ?? false,
                                         onTap: {
                                             handleRecipeSelection(recipe)
                                         }
@@ -95,6 +93,7 @@ struct PopularRecipesSheet: View {
             }
         }
         .onAppear {
+            print("🔍 PopularRecipesSheet appeared with searchQuery: '\(searchQuery)'")
             loadPopularRecipes()
         }
     }
@@ -102,6 +101,12 @@ struct PopularRecipesSheet: View {
     private func loadPopularRecipes() {
         guard AppConfiguration.isOpenAIConfigured else {
             errorMessage = "OpenAI is not configured"
+            isLoading = false
+            return
+        }
+
+        guard AppConfiguration.isGoogleSearchConfigured else {
+            errorMessage = "Google Search is not configured. Please set up your Google Custom Search API key and Search Engine ID in Config.xcconfig"
             isLoading = false
             return
         }
@@ -116,9 +121,6 @@ struct PopularRecipesSheet: View {
                     isLoading = false
                 }
 
-                // Generate images in background (non-blocking)
-                generateImagesInBackground()
-
             } catch {
                 await MainActor.run {
                     errorMessage = error.localizedDescription
@@ -128,55 +130,45 @@ struct PopularRecipesSheet: View {
         }
     }
 
-    private func generateImagesInBackground() {
-        guard AppConfiguration.isOpenAIConfigured else { return }
+    private func handleRecipeSelection(_ recipe: MealRecipe) {
+        guard let sourceURL = recipe.sourceURL else {
+            errorMessage = "Recipe URL not available"
+            return
+        }
 
-        for recipe in recipes {
-            let recipeId = recipe.id
+        // Immediately show recipe sheet with partial data
+        onRecipeSelected(recipe)
+        dismiss()
 
-            Task.detached {
+        // Continue loading full recipe in background
+        Task {
+            do {
+                // Extract full recipe from URL using RecipeURLService
+                let recipeService = RecipeURLService(apiKey: AppConfiguration.openAIAPIKey)
+                let aiResponse = try await recipeService.extractRecipeFromURL(sourceURL)
+                var fullRecipe = aiResponse.toMealRecipe(sourceURL: sourceURL)
+
+                // Preserve metadata from search results
+                fullRecipe.popularityScore = recipe.popularityScore
+                fullRecipe.popularitySource = recipe.popularitySource
+                if fullRecipe.imageURL == nil {
+                    fullRecipe.imageURL = recipe.imageURL  // Use search result image if extraction didn't find one
+                }
+
                 await MainActor.run {
-                    imageGenerationProgress[recipeId] = true
+                    // Save to MealDraft
+                    let draft = MealDraft(title: fullRecipe.title, selectedRecipe: fullRecipe)
+                    modelContext.insert(draft)
+                    try? modelContext.save()
+
+                    // Update with full recipe data
+                    onRecipeSelected(fullRecipe)
                 }
-
-                do {
-                    let imageService = DALLEImageService(apiKey: AppConfiguration.openAIAPIKey)
-
-                    // Use imagePrompt if available, otherwise use title
-                    let prompt = recipe.imagePrompt ?? recipe.title
-                    let imageURL = try await imageService.generateRecipeImage(for: prompt)
-
-                    await MainActor.run {
-                        // Update the recipe's imageURL
-                        if let index = recipes.firstIndex(where: { $0.id == recipeId }) {
-                            recipes[index].imageURL = imageURL
-                        }
-                        imageGenerationProgress[recipeId] = false
-                    }
-                } catch {
-                    await MainActor.run {
-                        imageGenerationProgress[recipeId] = false
-                        print("Failed to generate image for \(recipe.title): \(error)")
-                    }
-                }
+            } catch {
+                // Silently fail - user already has partial recipe shown
+                print("⚠️ Failed to load full recipe: \(error.localizedDescription)")
             }
         }
-    }
-
-    private func handleRecipeSelection(_ recipe: MealRecipe) {
-        // Save to MealDraft
-        let draft = MealDraft(
-            title: recipe.title,
-            selectedRecipe: recipe
-        )
-        modelContext.insert(draft)
-        try? modelContext.save()
-
-        // Call callback to show RecipeIngredientSelectionSheet
-        onRecipeSelected(recipe)
-
-        // Dismiss this sheet
-        dismiss()
     }
 }
 
@@ -184,7 +176,6 @@ struct PopularRecipesSheet: View {
 
 struct PopularRecipeCard: View {
     let recipe: MealRecipe
-    let isLoadingImage: Bool
     let onTap: () -> Void
 
     var body: some View {
@@ -192,96 +183,72 @@ struct PopularRecipeCard: View {
             onTap()
         } label: {
             VStack(alignment: .leading, spacing: 0) {
-                // Recipe image with loading state
-                Group {
-                    if isLoadingImage || recipe.imageURL == nil {
-                        Rectangle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(height: 200)
-                            .overlay {
-                                if isLoadingImage {
-                                    ProgressView()
-                                } else {
-                                    Image(systemName: "fork.knife")
+                // Recipe image
+                if let imageURL = recipe.imageURL, let url = URL(string: imageURL) {
+                    AsyncImage(url: url) { phase in
+                        switch phase {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .clipped()
+                        case .failure(_):
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.2))
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .overlay {
+                                    Image(systemName: "photo")
                                         .font(.largeTitle)
                                         .foregroundStyle(.tertiary)
                                 }
-                            }
-                    } else if let imageURL = recipe.imageURL, let url = URL(string: imageURL) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                                    .frame(height: 200)
-                                    .clipped()
-                            case .failure(_):
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(height: 200)
-                                    .overlay {
-                                        Image(systemName: "photo")
-                                            .font(.largeTitle)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                            case .empty:
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.1))
-                                    .frame(height: 200)
-                                    .overlay {
-                                        ProgressView()
-                                    }
-                            @unknown default:
-                                EmptyView()
-                            }
+                        case .empty:
+                            Rectangle()
+                                .fill(Color.gray.opacity(0.1))
+                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                                .overlay {
+                                    ProgressView()
+                                }
+                        @unknown default:
+                            EmptyView()
                         }
                     }
+                } else {
+                    // No image URL - show placeholder
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
+                        .overlay {
+                            Image(systemName: "fork.knife")
+                                .font(.largeTitle)
+                                .foregroundStyle(.tertiary)
+                        }
                 }
 
                 // Recipe info
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text(recipe.title)
                         .font(.outfit(15, weight: .semiBold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
 
-                    // Popularity rating
-                    if let score = recipe.popularityScore {
+                    // Recipe source
+                    if let source = recipe.popularitySource {
                         HStack(spacing: 4) {
-                            Image(systemName: "star.fill")
+                            Image(systemName: "link")
                                 .font(.system(size: 11))
-                                .foregroundStyle(.yellow)
-                            Text(String(format: "%.1f", score))
-                                .font(.outfit(12))
-                                .foregroundStyle(.secondary)
+                            Text(source)
+                                .font(.outfit(12, weight: .medium))
                         }
+                        .foregroundStyle(.blue)
                     }
-
-                    HStack(spacing: 10) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.2")
-                                .font(.system(size: 11))
-                            Text("\(recipe.servings)")
-                                .font(.outfit(12))
-                        }
-
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                                .font(.system(size: 11))
-                            Text("\(recipe.estimatedTimeMinutes)m")
-                                .font(.outfit(12))
-                        }
-                    }
-                    .foregroundStyle(.secondary)
                 }
                 .padding(14)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -304,7 +271,7 @@ struct PopularRecipeCardSkeleton: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ShimmerView()
-                .frame(height: 200)
+                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: 200)
 
             VStack(alignment: .leading, spacing: 6) {
                 ShimmerView()
