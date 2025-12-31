@@ -1,13 +1,13 @@
 import SwiftUI
 import SwiftData
-// import FirebaseCore // Commented out - Firebase optional for now
+import FirebaseCore
 
 @main
 struct GroceryNotesApp: App {
     let container: ModelContainer
 
     init() {
-        // FirebaseApp.configure() // Commented out - Firebase optional for now
+        FirebaseApp.configure()
 
         // Create a single ModelContainer for the entire app with migration support
         let schema = Schema([

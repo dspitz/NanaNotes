@@ -2,23 +2,32 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @AppStorage("skipFirebase") private var skipFirebase = true // Default to skip Firebase
+    @AppStorage("skipFirebase") private var skipFirebase = false // Firebase enabled
+    @State private var authService = FirebaseAuthService.shared
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            NotesListView()
-                .tabItem {
-                    Label("Notes", systemImage: "cart")
-                }
-                .tag(0)
+        Group {
+            if skipFirebase || authService.isAuthenticated {
+                // Show main app if Firebase is disabled or user is authenticated
+                TabView(selection: $selectedTab) {
+                    NotesListView()
+                        .tabItem {
+                            Label("Notes", systemImage: "cart")
+                        }
+                        .tag(0)
 
-            MealsView()
-                .tabItem {
-                    Label("Recipes", systemImage: "fork.knife")
+                    MealsView()
+                        .tabItem {
+                            Label("Recipes", systemImage: "fork.knife")
+                        }
+                        .tag(1)
                 }
-                .tag(1)
+                .applyOutfitFont()
+            } else {
+                // Show authentication view if Firebase is enabled and user is not authenticated
+                AuthenticationView()
+            }
         }
-        .applyOutfitFont()
     }
 }
 
