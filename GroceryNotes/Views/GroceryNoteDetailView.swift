@@ -197,7 +197,9 @@ struct GroceryNoteDetailView: View {
                                         expandedItemId = item.id
                                         // Trigger expansion animation after view appears
                                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                            isExpanding = true
+                                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                                isExpanding = true
+                                            }
                                         }
                                     }
                                 )
@@ -283,7 +285,9 @@ struct GroceryNoteDetailView: View {
                                 expandedItemId = item.id
                                 // Trigger expansion animation after view appears
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
-                                    isExpanding = true
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        isExpanding = true
+                                    }
                                 }
                             }
                         )
@@ -438,16 +442,18 @@ struct GroceryNoteDetailView: View {
                 floatingInputBar
                 loadingOverlay
             }
-            .blur(radius: expandedItemId != nil ? 8 : 0)
-            .animation(nil, value: expandedItemId)  // Blur instantly - no animation
+            .blur(radius: isExpanding ? 8 : 0)
 
             // Overlay: Dark scrim when expanded
             if expandedItemId != nil {
-                Color.black.opacity(0.3)
+                Color.black.opacity(isExpanding ? 0.3 : 0)
                     .ignoresSafeArea()
-                    .transition(.opacity)
+                    .allowsHitTesting(isExpanding)
                     .onTapGesture {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
+                            isExpanding = false
+                        }
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                             expandedItemId = nil
                             editingItemId = nil
                         }
@@ -464,7 +470,7 @@ struct GroceryNoteDetailView: View {
                     // Calculate dimensions
                     let expandedWidth: CGFloat = UIScreen.main.bounds.width - 48
                     let startWidth = sourceFrame.width
-                    let startHeight: CGFloat = 60  // Fixed row height
+                    let startHeight = sourceFrame.height
 
                     // Calculate expanded height - use measured or estimated
                     let estimatedHeight: CGFloat = expandedItem.isRecurring ? 320 : 260
@@ -514,12 +520,12 @@ struct GroceryNoteDetailView: View {
                             updateSeasonality(for: expandedItem, seasonality: seasonality)
                         },
                         onClose: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
                                 isExpanding = false
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                                    expandedItemId = nil
-                                    editingItemId = nil
-                                }
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                expandedItemId = nil
+                                editingItemId = nil
                             }
                         }
                     )
@@ -550,8 +556,6 @@ struct GroceryNoteDetailView: View {
                 .zIndex(100)
             }
         }
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: expandedItemId)
-        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isExpanding)
         .animation(.easeInOut(duration: 0.25), value: keyboardResponder.isKeyboardVisible)
         .navigationTitle(note.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -566,6 +570,7 @@ struct GroceryNoteDetailView: View {
                         .foregroundStyle(.blue)
                 }
             }
+
             ToolbarItem(placement: .primaryAction) {
                 Menu {
                     // Firebase sharing disabled for now
@@ -1502,18 +1507,36 @@ struct AnimatableFontModifier: AnimatableModifier {
     }
 }
 
-// Animatable Outfit font modifier
+// Animatable Outfit font modifier with weight support
 struct AnimatableOutfitFontModifier: AnimatableModifier {
     var size: Double
-    var weight: Font.OutfitWeight
+    var weight: Double  // Numeric weight from 100-900
 
-    var animatableData: Double {
-        get { size }
-        set { size = newValue }
+    var animatableData: AnimatablePair<Double, Double> {
+        get { AnimatablePair(size, weight) }
+        set {
+            size = newValue.first
+            weight = newValue.second
+        }
     }
 
     func body(content: Content) -> some View {
-        content.font(.outfit(size, weight: weight))
+        let uiFont = UIFont(name: fontNameForWeight(weight), size: size) ?? UIFont.systemFont(ofSize: size)
+        return content.font(Font(uiFont))
+    }
+
+    private func fontNameForWeight(_ numericWeight: Double) -> String {
+        // Map numeric weight to Outfit font names
+        // 400 = Regular, 500 = Medium, 600 = SemiBold, 700 = Bold
+        if numericWeight < 450 {
+            return "Outfit-Regular"
+        } else if numericWeight < 550 {
+            return "Outfit-Medium"
+        } else if numericWeight < 650 {
+            return "Outfit-SemiBold"
+        } else {
+            return "Outfit-Bold"
+        }
     }
 }
 
@@ -1561,7 +1584,6 @@ struct ItemRowView: View {
                     }
                 )
                 .opacity(isExpanded ? 0 : 1)
-                .animation(nil, value: isExpanded)  // Instant fade out, no animation
                 .onAppear {
                     itemFrame = geometry.frame(in: .global)
                     print("📍 ItemRowView onAppear - frame: \(itemFrame)")
@@ -1688,7 +1710,7 @@ struct FloatingExpandedItemView: View {
         VStack(spacing: 0) {
             // Header: Compact row (emoji, name, checkbox)
             compactHeader
-                .padding(.vertical, 16)
+                .padding(.vertical, 12)
                 .padding(.horizontal, 16)
 
             // Quantity row - centered, above divider
@@ -1760,13 +1782,15 @@ struct FloatingExpandedItemView: View {
                             onEditTap()
                         } label: {
                             Text(item.name)
-                                .modifier(AnimatableOutfitFontModifier(size: isExpanding ? 24 : 16, weight: .semiBold))
+                                .modifier(AnimatableOutfitFontModifier(size: isExpanding ? 24 : 16, weight: isExpanding ? 600 : 400))
                                 .strikethrough(item.isChecked)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .opacity(isExpanding ? 1 : 0)
+                .frame(height: isExpanding ? nil : 0)
+                .clipped()
 
                 // Horizontal stack when collapsed - always in hierarchy
                 HStack(spacing: 8) {
@@ -1774,7 +1798,7 @@ struct FloatingExpandedItemView: View {
                         .font(.system(size: 34))
 
                     Text(item.name)
-                        .font(.outfit(16, weight: .semiBold))
+                        .font(.outfit(16))
                         .strikethrough(item.isChecked)
 
                     if let quantity = item.quantity {
