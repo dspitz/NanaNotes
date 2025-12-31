@@ -495,6 +495,7 @@ struct GroceryNoteDetailView: View {
                         },
                         onEditComplete: { newName in
                             expandedItem.name = newName
+                            expandedItem.normalizedName = newName.lowercased().trimmingCharacters(in: .whitespaces)
                             expandedItem.updatedAt = Date()
                             editingItemId = nil
                             try? modelContext.save()
@@ -503,7 +504,9 @@ struct GroceryNoteDetailView: View {
                             updateQuantity(for: expandedItem, delta: delta)
                         },
                         onToggleRecurring: {
-                            expandedItem.toggleRecurring()
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                expandedItem.toggleRecurring()
+                            }
                             updateRecurringItem(expandedItem)
                             try? modelContext.save()
                         },
@@ -1485,6 +1488,35 @@ struct ExpandedHeightPreferenceKey: PreferenceKey {
     }
 }
 
+// Animatable font size modifier
+struct AnimatableFontModifier: AnimatableModifier {
+    var size: Double
+
+    var animatableData: Double {
+        get { size }
+        set { size = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.system(size: size))
+    }
+}
+
+// Animatable Outfit font modifier
+struct AnimatableOutfitFontModifier: AnimatableModifier {
+    var size: Double
+    var weight: Font.OutfitWeight
+
+    var animatableData: Double {
+        get { size }
+        set { size = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.font(.outfit(size, weight: weight))
+    }
+}
+
 struct ItemRowView: View {
     enum Position {
         case only       // Single item in section
@@ -1529,6 +1561,7 @@ struct ItemRowView: View {
                     }
                 )
                 .opacity(isExpanded ? 0 : 1)
+                .animation(nil, value: isExpanded)  // Instant fade out, no animation
                 .onAppear {
                     itemFrame = geometry.frame(in: .global)
                     print("📍 ItemRowView onAppear - frame: \(itemFrame)")
@@ -1658,6 +1691,12 @@ struct FloatingExpandedItemView: View {
                 .padding(.vertical, 16)
                 .padding(.horizontal, 16)
 
+            // Quantity row - centered, above divider
+            quantityRow
+                .padding(.bottom, 16)
+                .opacity(isExpanding ? 1 : 0)
+                .frame(height: isExpanding ? nil : 0)
+
             // Always include controls in hierarchy so they move with parent
             Divider()
                 .padding(.horizontal, 16)
@@ -1666,8 +1705,6 @@ struct FloatingExpandedItemView: View {
 
             // Expanded controls
             VStack(alignment: .leading, spacing: 16) {
-                nameEditingRow
-                quantityRow
                 recurringRow
 
                 if item.isRecurring {
@@ -1677,8 +1714,8 @@ struct FloatingExpandedItemView: View {
             .padding(16)
             .opacity(isExpanding ? 1 : 0)
             .frame(height: isExpanding ? nil : 0)
-            .clipped()
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: item.isRecurring)
         .background(
             ZStack {
                 RoundedRectangle(cornerRadius: 20)
@@ -1693,51 +1730,95 @@ struct FloatingExpandedItemView: View {
 
     private var compactHeader: some View {
         HStack(spacing: 12) {
-            HStack(spacing: 8) {
-                Text(item.emoji)
-                    .font(.system(size: 34))
+            // Add leading spacer when expanded to center content
+            if isExpanding {
+                Spacer()
+            }
 
-                Text(item.name)
-                    .font(.outfit(16, weight: .semiBold))
-                    .strikethrough(item.isChecked)
+            // Keep both layouts in hierarchy and cross-fade for smooth animation
+            ZStack {
+                // Vertical stack when expanded - always in hierarchy
+                VStack(spacing: 8) {
+                    Text(item.emoji)
+                        .modifier(AnimatableFontModifier(size: isExpanding ? 68 : 34))
 
-                if let quantity = item.quantity {
-                    Text("(\(quantity))")
-                        .foregroundStyle(.secondary)
-                        .font(.outfit(15))
+                    if isEditing {
+                        TextField("Item name", text: $editedName)
+                            .font(.outfit(24, weight: .semiBold))
+                            .multilineTextAlignment(.center)
+                            .textFieldStyle(.plain)
+                            .focused($isEditingFocused)
+                            .onAppear {
+                                editedName = item.name
+                                isEditingFocused = true
+                            }
+                            .onSubmit {
+                                onEditComplete(editedName)
+                            }
+                    } else {
+                        Button {
+                            onEditTap()
+                        } label: {
+                            Text(item.name)
+                                .modifier(AnimatableOutfitFontModifier(size: isExpanding ? 24 : 16, weight: .semiBold))
+                                .strikethrough(item.isChecked)
+                        }
+                        .buttonStyle(.plain)
+                    }
                 }
+                .opacity(isExpanding ? 1 : 0)
+
+                // Horizontal stack when collapsed - always in hierarchy
+                HStack(spacing: 8) {
+                    Text(item.emoji)
+                        .font(.system(size: 34))
+
+                    Text(item.name)
+                        .font(.outfit(16, weight: .semiBold))
+                        .strikethrough(item.isChecked)
+
+                    if let quantity = item.quantity {
+                        Text("(\(quantity))")
+                            .foregroundStyle(.secondary)
+                            .font(.outfit(15))
+                    }
+                }
+                .opacity(isExpanding ? 0 : 1)
             }
             .opacity(item.isChecked ? 0.4 : 1.0)
 
             Spacer()
 
-            ZStack {
-                Circle()
-                    .fill(item.isChecked ? Color.black : Color(red: 0.851, green: 0.851, blue: 0.851))
-                    .frame(width: 28, height: 28)
-                    .overlay(
-                        Circle()
-                            .strokeBorder(.white, lineWidth: 1)
-                    )
+            // Hide checkbox when expanded
+            if !isExpanding {
+                ZStack {
+                    Circle()
+                        .fill(item.isChecked ? Color.black : Color(red: 0.851, green: 0.851, blue: 0.851))
+                        .frame(width: 28, height: 28)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white, lineWidth: 1)
+                        )
 
-                if item.isChecked {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(.white)
+                    if item.isChecked {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.white)
+                    }
                 }
-            }
-            .overlay(alignment: .center) {
-                Button {
-                    let impact = UIImpactFeedbackGenerator(style: .light)
-                    impact.impactOccurred()
-                    item.toggleCheck()
-                    item.note?.checkIfShouldUncomplete()
-                } label: {
-                    Color.clear
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
+                .overlay(alignment: .center) {
+                    Button {
+                        let impact = UIImpactFeedbackGenerator(style: .light)
+                        impact.impactOccurred()
+                        item.toggleCheck()
+                        item.note?.checkIfShouldUncomplete()
+                    } label: {
+                        Color.clear
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -1781,36 +1862,30 @@ struct FloatingExpandedItemView: View {
     }
 
     private var quantityRow: some View {
-        HStack {
-            Text("Quantity")
-                .font(.outfit(14, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 80, alignment: .leading)
-
-            HStack(spacing: 12) {
-                Button {
-                    onQuantityChange(-1)
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.gray)
-                }
-                .buttonStyle(.plain)
-
-                Text(item.quantity ?? "1")
-                    .font(.outfit(16))
-                    .frame(minWidth: 60)
-
-                Button {
-                    onQuantityChange(1)
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 24))
-                        .foregroundStyle(.blue)
-                }
-                .buttonStyle(.plain)
+        HStack(spacing: 12) {
+            Button {
+                onQuantityChange(-1)
+            } label: {
+                Image(systemName: "minus.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.gray)
             }
+            .buttonStyle(.plain)
+
+            Text(item.quantity ?? "1")
+                .font(.outfit(16))
+                .frame(minWidth: 60)
+
+            Button {
+                onQuantityChange(1)
+            } label: {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.blue)
+            }
+            .buttonStyle(.plain)
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var recurringRow: some View {
@@ -1836,6 +1911,8 @@ struct FloatingExpandedItemView: View {
                 .font(.outfit(14, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 80, alignment: .leading)
+
+            Spacer()
 
             Picker("", selection: Binding(
                 get: { getCurrentSeasonality() },
