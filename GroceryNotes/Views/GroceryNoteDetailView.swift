@@ -21,7 +21,6 @@ struct GroceryNoteDetailView: View {
 
     @State private var newItemName = ""
     @State private var selectedItem: GroceryItem?
-    @State private var showingStorageDetail = false
     @State private var showingEditSheet = false
     @State private var viewMode: ViewMode = .ordered
     @FocusState private var isInputFocused: Bool
@@ -51,6 +50,14 @@ struct GroceryNoteDetailView: View {
     // Scroll to newly added item
     @State private var scrollToItemId: UUID?
     @State private var animatingEmojiItemId: UUID?
+
+    // Expansion state for inline editing
+    @State private var expandedItemId: UUID?
+    @State private var editingItemId: UUID?
+    @State private var sourceFrame: CGRect = .zero
+    @State private var isExpanding: Bool = false  // Track expansion animation state
+    @State private var expandedHeight: CGFloat = 0  // Track measured expanded height
+    @Namespace private var expansionNamespace
 
     enum ViewMode: String, CaseIterable {
         case ordered = "Aisles"
@@ -176,14 +183,22 @@ struct GroceryNoteDetailView: View {
                                     item: item,
                                     position: position,
                                     isAppearing: animatingEmojiItemId == item.id,
-                                    onInfoTap: {
-                                        selectedItem = item
-                                        showingStorageDetail = true
-                                    },
-                                    onToggleRecurring: {
-                                        item.toggleRecurring()
-                                        updateRecurringItem(item)
-                                        try? modelContext.save()
+                                    isExpanded: expandedItemId == item.id,
+                                    namespace: expansionNamespace,
+                                    onTap: { frame in
+                                        print("🎯 Tapped item: \(item.name)")
+                                        print("📏 Source frame: \(frame)")
+                                        print("   - Origin: (\(frame.minX), \(frame.minY))")
+                                        print("   - Size: \(frame.width) × \(frame.height)")
+                                        print("   - Center: (\(frame.midX), \(frame.midY))")
+
+                                        sourceFrame = frame
+                                        isExpanding = false
+                                        expandedItemId = item.id
+                                        // Trigger expansion animation after view appears
+                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                            isExpanding = true
+                                        }
                                     }
                                 )
                                 .id(item.id)
@@ -200,17 +215,18 @@ struct GroceryNoteDetailView: View {
                                 }
                             .contextMenu {
                                 Button {
-                                    selectedItem = item
-                                    showingEditSheet = true
+                                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                        expandedItemId = item.id
+                                    }
                                 } label: {
-                                    Label("Edit", systemImage: "pencil")
+                                    Label("Expand", systemImage: "arrow.up.left.and.arrow.down.right")
                                 }
 
                                 Button {
                                     selectedItem = item
-                                    showingStorageDetail = true
+                                    showingEditSheet = true
                                 } label: {
-                                    Label("Storage Info", systemImage: "info.circle")
+                                    Label("Edit", systemImage: "pencil")
                                 }
 
                                 Menu {
@@ -253,14 +269,22 @@ struct GroceryNoteDetailView: View {
                             item: item,
                             position: position,
                             isAppearing: animatingEmojiItemId == item.id,
-                            onInfoTap: {
-                                selectedItem = item
-                                showingStorageDetail = true
-                            },
-                            onToggleRecurring: {
-                                item.toggleRecurring()
-                                updateRecurringItem(item)
-                                try? modelContext.save()
+                            isExpanded: expandedItemId == item.id,
+                            namespace: expansionNamespace,
+                            onTap: { frame in
+                                print("🎯 Tapped item: \(item.name)")
+                                print("📏 Source frame: \(frame)")
+                                print("   - Origin: (\(frame.minX), \(frame.minY))")
+                                print("   - Size: \(frame.width) × \(frame.height)")
+                                print("   - Center: (\(frame.midX), \(frame.midY))")
+
+                                sourceFrame = frame
+                                isExpanding = false
+                                expandedItemId = item.id
+                                // Trigger expansion animation after view appears
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                                    isExpanding = true
+                                }
                             }
                         )
                         .listRowBackground(Color.clear)
@@ -275,17 +299,18 @@ struct GroceryNoteDetailView: View {
                         }
                         .contextMenu {
                             Button {
-                                selectedItem = item
-                                showingEditSheet = true
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                    expandedItemId = item.id
+                                }
                             } label: {
-                                Label("Edit", systemImage: "pencil")
+                                Label("Expand", systemImage: "arrow.up.left.and.arrow.down.right")
                             }
 
                             Button {
                                 selectedItem = item
-                                showingStorageDetail = true
+                                showingEditSheet = true
                             } label: {
-                                Label("Storage Info", systemImage: "info.circle")
+                                Label("Edit", systemImage: "pencil")
                             }
 
                             Menu {
@@ -362,9 +387,19 @@ struct GroceryNoteDetailView: View {
         .safeAreaInset(edge: .bottom) {
             Color.clear.frame(height: 180)
         }
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 10)
+                .onChanged { _ in
+                    // Dismiss keyboard when scrolling
+                    if isInputFocused {
+                        isInputFocused = false
+                    }
+                }
+        )
         .onTapGesture {
             // Dismiss keyboard when tapping on list
             isInputFocused = false
+            // Collapse is now handled by overlay tap gesture
         }
         .onChange(of: scrollToItemId) { _, newId in
             if let id = newId {
@@ -386,22 +421,134 @@ struct GroceryNoteDetailView: View {
     }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            backgroundColor
+        ZStack {
+            // Background layer
+            ZStack(alignment: .bottom) {
+                backgroundColor
 
-            VStack(spacing: 0) {
-                headerView
+                VStack(spacing: 0) {
+                    headerView
 
-                ScrollViewReader { proxy in
-                    scrollableContent(proxy: proxy)
+                    ScrollViewReader { proxy in
+                        scrollableContent(proxy: proxy)
+                    }
                 }
-            }
-            // End of VStack
 
-            gradientScrim
-            floatingInputBar
-            loadingOverlay
+                gradientScrim
+                floatingInputBar
+                loadingOverlay
+            }
+            .blur(radius: expandedItemId != nil ? 8 : 0)
+            .animation(nil, value: expandedItemId)  // Blur instantly - no animation
+
+            // Overlay: Dark scrim when expanded
+            if expandedItemId != nil {
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            expandedItemId = nil
+                            editingItemId = nil
+                        }
+                    }
+            }
+
+            // Overlay: Floating expanded item
+            if let expandedId = expandedItemId,
+               let expandedItem = note.items.first(where: { $0.id == expandedId }) {
+                ZStack {
+                    Color.clear
+                }
+                .overlay {
+                    // Calculate dimensions
+                    let expandedWidth: CGFloat = UIScreen.main.bounds.width - 48
+                    let startWidth = sourceFrame.width
+                    let startHeight: CGFloat = 60  // Fixed row height
+
+                    // Calculate expanded height - use measured or estimated
+                    let estimatedHeight: CGFloat = expandedItem.isRecurring ? 320 : 260
+                    let finalHeight: CGFloat = expandedHeight > 0 ? expandedHeight : estimatedHeight
+
+                    // Start position: CENTER of source frame (position uses center point)
+                    let startCenterX = sourceFrame.midX
+                    let startCenterY = sourceFrame.midY
+
+                    // End position: centered on screen
+                    let screenWidth = UIScreen.main.bounds.width
+                    let screenHeight = UIScreen.main.bounds.height
+                    let targetCenterX = screenWidth / 2
+                    let targetCenterY = screenHeight / 2
+
+                    let _ = print("🎬 Overlay rendering - isExpanding: \(isExpanding)")
+                    let _ = print("   Start: center=(\(startCenterX), \(startCenterY)) size=\(startWidth)×\(startHeight)")
+                    let _ = print("   Target: center=(\(targetCenterX), \(targetCenterY)) size=\(expandedWidth)×\(finalHeight)")
+                    let _ = print("   Current frame: width=\(isExpanding ? expandedWidth : startWidth) height=\(isExpanding ? finalHeight : startHeight)")
+
+                    FloatingExpandedItemView(
+                        item: expandedItem,
+                        isEditing: editingItemId == expandedId,
+                        isExpanding: isExpanding,
+                        namespace: expansionNamespace,
+                        onEditTap: {
+                            editingItemId = expandedId
+                        },
+                        onEditComplete: { newName in
+                            expandedItem.name = newName
+                            expandedItem.updatedAt = Date()
+                            editingItemId = nil
+                            try? modelContext.save()
+                        },
+                        onQuantityChange: { delta in
+                            updateQuantity(for: expandedItem, delta: delta)
+                        },
+                        onToggleRecurring: {
+                            expandedItem.toggleRecurring()
+                            updateRecurringItem(expandedItem)
+                            try? modelContext.save()
+                        },
+                        onSeasonalityChange: { seasonality in
+                            updateSeasonality(for: expandedItem, seasonality: seasonality)
+                        },
+                        onClose: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                                isExpanding = false
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                                    expandedItemId = nil
+                                    editingItemId = nil
+                                }
+                            }
+                        }
+                    )
+                    .background(
+                        GeometryReader { expandedGeo in
+                            Color.clear
+                                .preference(key: ExpandedHeightPreferenceKey.self, value: expandedGeo.size.height)
+                        }
+                    )
+                    .onPreferenceChange(ExpandedHeightPreferenceKey.self) { newHeight in
+                        if expandedHeight != newHeight {
+                            expandedHeight = newHeight
+                            print("📐 Measured expanded height: \(newHeight)")
+                        }
+                    }
+                    .frame(
+                        width: isExpanding ? expandedWidth : startWidth,
+                        height: isExpanding ? finalHeight : startHeight
+                    )
+                    .position(
+                        x: isExpanding ? targetCenterX : startCenterX,
+                        y: isExpanding ? targetCenterY : startCenterY
+                    )
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+                .allowsHitTesting(true)
+                .zIndex(100)
+            }
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: expandedItemId)
+        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: isExpanding)
         .animation(.easeInOut(duration: 0.25), value: keyboardResponder.isKeyboardVisible)
         .navigationTitle(note.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -455,11 +602,6 @@ struct GroceryNoteDetailView: View {
         .sheet(isPresented: $showingShareSheet) {
             if let listId = firebaseListId {
                 ShareListSheet(note: note, listId: listId)
-            }
-        }
-        .sheet(isPresented: $showingStorageDetail) {
-            if let item = selectedItem {
-                StorageDetailView(item: item)
             }
         }
         .sheet(isPresented: $showingEditSheet) {
@@ -1061,6 +1203,52 @@ struct GroceryNoteDetailView: View {
         }
     }
 
+    private func updateQuantity(for item: GroceryItem, delta: Int) {
+        // Parse current quantity
+        guard let currentQty = item.quantity else {
+            // No quantity, set to "1"
+            item.quantity = "1"
+            item.updatedAt = Date()
+            try? modelContext.save()
+            return
+        }
+
+        // Try to extract numeric value
+        let components = currentQty.components(separatedBy: CharacterSet.decimalDigits.inverted)
+        let numbers = components.compactMap { Int($0) }
+
+        if let currentValue = numbers.first {
+            let newValue = max(1, currentValue + delta)
+            // Replace the number but keep the unit
+            let newQty = currentQty.replacingOccurrences(
+                of: String(currentValue),
+                with: String(newValue),
+                options: [],
+                range: currentQty.range(of: String(currentValue))
+            )
+            item.quantity = newQty
+        } else {
+            // Can't parse, just set to "1"
+            item.quantity = "1"
+        }
+
+        item.updatedAt = Date()
+        try? modelContext.save()
+    }
+
+    private func updateSeasonality(for item: GroceryItem, seasonality: RecurringSeasonality) {
+        let itemNormalizedName = item.normalizedName
+        let descriptor = FetchDescriptor<RecurringItem>(
+            predicate: #Predicate { $0.normalizedName == itemNormalizedName }
+        )
+
+        if let existing = try? modelContext.fetch(descriptor).first {
+            existing.seasonality = seasonality
+            existing.updatedAt = Date()
+            try? modelContext.save()
+        }
+    }
+
     // MARK: - Input Handling
 
     private func handleInputSubmission() {
@@ -1289,6 +1477,14 @@ struct GroceryNoteDetailView: View {
     }
 }
 
+// Preference key for measuring expanded view height
+struct ExpandedHeightPreferenceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
+    }
+}
+
 struct ItemRowView: View {
     enum Position {
         case only       // Single item in section
@@ -1300,10 +1496,12 @@ struct ItemRowView: View {
     @Bindable var item: GroceryItem
     let position: Position
     var isAppearing: Bool = false
-    let onInfoTap: () -> Void
-    let onToggleRecurring: () -> Void
+    var isExpanded: Bool = false
+    let namespace: Namespace.ID
+    let onTap: (CGRect) -> Void  // Now passes frame
 
     @State private var hasAppeared: Bool = false
+    @State private var itemFrame: CGRect = .zero
 
     private var cornerRadius: RectangleCornerRadii {
         switch position {
@@ -1319,10 +1517,36 @@ struct ItemRowView: View {
     }
 
     var body: some View {
-        Button {
-            onInfoTap()
-        } label: {
-            HStack(spacing: 12) {
+        GeometryReader { geometry in
+            compactRow
+                .background(
+                    ZStack {
+                        VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
+                            .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadius))
+
+                        UnevenRoundedRectangle(cornerRadii: cornerRadius)
+                            .strokeBorder(.white, lineWidth: 1)
+                    }
+                )
+                .opacity(isExpanded ? 0 : 1)
+                .onAppear {
+                    itemFrame = geometry.frame(in: .global)
+                    print("📍 ItemRowView onAppear - frame: \(itemFrame)")
+                }
+                .onChange(of: geometry.frame(in: .global)) { _, newFrame in
+                    itemFrame = newFrame
+                    print("📍 ItemRowView onChange - frame: \(itemFrame)")
+                }
+        }
+        .frame(height: 60)  // Fixed height for the row
+    }
+
+    private var compactRow: some View {
+        HStack(spacing: 12) {
+            // Expandable tap area (everything except checkbox)
+            Button {
+                onTap(itemFrame)
+            } label: {
                 HStack(spacing: 8) {
                     Text(item.emoji)
                         .font(.system(size: 34))
@@ -1361,12 +1585,15 @@ struct ItemRowView: View {
                             .foregroundStyle(.secondary)
                             .font(.outfit(15))
                     }
+
+                    Spacer(minLength: 0)
                 }
                 .padding(.leading, item.isChecked ? 4 : 0)
                 .opacity(item.isChecked ? 0.4 : 1.0)
                 .animation(.spring(response: 0.4, dampingFraction: 0.7), value: item.isChecked)
-
-                Spacer()
+                .contentShape(Rectangle())  // Makes entire area tappable
+            }
+            .buttonStyle(.plain)
 
                 ZStack {
                     // Background circle
@@ -1400,27 +1627,239 @@ struct ItemRowView: View {
                     }
                     .buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .background(
-                ZStack {
-                    // Backdrop blur effect
-                    VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
-                        .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadius))
-
-                    // White stroke border
-                    UnevenRoundedRectangle(cornerRadii: cornerRadius)
-                        .strokeBorder(.white, lineWidth: 1)
-                }
-            )
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
         .foregroundStyle(.primary)
     }
+
 }
 
+struct FloatingExpandedItemView: View {
+    @Bindable var item: GroceryItem
+    var isEditing: Bool
+    var isExpanding: Bool  // Track whether we're in expanded state
+    let namespace: Namespace.ID
+    let onEditTap: () -> Void
+    let onEditComplete: (String) -> Void
+    let onQuantityChange: (Int) -> Void
+    let onToggleRecurring: () -> Void
+    let onSeasonalityChange: (RecurringSeasonality) -> Void
+    let onClose: () -> Void
+
+    @State private var editedName: String = ""
+    @FocusState private var isEditingFocused: Bool
+    @Environment(\.modelContext) private var modelContext
+
+    var body: some View {
+        VStack(spacing: 0) {
+            // Header: Compact row (emoji, name, checkbox)
+            compactHeader
+                .padding(.vertical, 16)
+                .padding(.horizontal, 16)
+
+            // Always include controls in hierarchy so they move with parent
+            Divider()
+                .padding(.horizontal, 16)
+                .opacity(isExpanding ? 1 : 0)
+                .frame(height: isExpanding ? nil : 0)
+
+            // Expanded controls
+            VStack(alignment: .leading, spacing: 16) {
+                nameEditingRow
+                quantityRow
+                recurringRow
+
+                if item.isRecurring {
+                    seasonalityRow
+                }
+            }
+            .padding(16)
+            .opacity(isExpanding ? 1 : 0)
+            .frame(height: isExpanding ? nil : 0)
+            .clipped()
+        }
+        .background(
+            ZStack {
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(.ultraThinMaterial)
+
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(.white.opacity(0.5), lineWidth: 1)
+            }
+        )
+        .shadow(color: .black.opacity(0.3), radius: 30, x: 0, y: 10)
+    }
+
+    private var compactHeader: some View {
+        HStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Text(item.emoji)
+                    .font(.system(size: 34))
+
+                Text(item.name)
+                    .font(.outfit(16, weight: .semiBold))
+                    .strikethrough(item.isChecked)
+
+                if let quantity = item.quantity {
+                    Text("(\(quantity))")
+                        .foregroundStyle(.secondary)
+                        .font(.outfit(15))
+                }
+            }
+            .opacity(item.isChecked ? 0.4 : 1.0)
+
+            Spacer()
+
+            ZStack {
+                Circle()
+                    .fill(item.isChecked ? Color.black : Color(red: 0.851, green: 0.851, blue: 0.851))
+                    .frame(width: 28, height: 28)
+                    .overlay(
+                        Circle()
+                            .strokeBorder(.white, lineWidth: 1)
+                    )
+
+                if item.isChecked {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
+            }
+            .overlay(alignment: .center) {
+                Button {
+                    let impact = UIImpactFeedbackGenerator(style: .light)
+                    impact.impactOccurred()
+                    item.toggleCheck()
+                    item.note?.checkIfShouldUncomplete()
+                } label: {
+                    Color.clear
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var nameEditingRow: some View {
+        HStack {
+            Text("Name")
+                .font(.outfit(14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .leading)
+
+            if isEditing {
+                TextField("Item name", text: $editedName)
+                    .font(.outfit(16))
+                    .textFieldStyle(.roundedBorder)
+                    .focused($isEditingFocused)
+                    .onAppear {
+                        editedName = item.name
+                        isEditingFocused = true
+                    }
+                    .onSubmit {
+                        onEditComplete(editedName)
+                    }
+            } else {
+                Button {
+                    onEditTap()
+                } label: {
+                    HStack {
+                        Text(item.name)
+                            .font(.outfit(16))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "pencil")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var quantityRow: some View {
+        HStack {
+            Text("Quantity")
+                .font(.outfit(14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .leading)
+
+            HStack(spacing: 12) {
+                Button {
+                    onQuantityChange(-1)
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.gray)
+                }
+                .buttonStyle(.plain)
+
+                Text(item.quantity ?? "1")
+                    .font(.outfit(16))
+                    .frame(minWidth: 60)
+
+                Button {
+                    onQuantityChange(1)
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 24))
+                        .foregroundStyle(.blue)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    private var recurringRow: some View {
+        HStack {
+            Text("Recurring")
+                .font(.outfit(14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .leading)
+
+            Spacer()
+
+            Toggle("", isOn: Binding(
+                get: { item.isRecurring },
+                set: { _ in onToggleRecurring() }
+            ))
+            .labelsHidden()
+        }
+    }
+
+    private var seasonalityRow: some View {
+        HStack {
+            Text("Season")
+                .font(.outfit(14, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 80, alignment: .leading)
+
+            Picker("", selection: Binding(
+                get: { getCurrentSeasonality() },
+                set: { onSeasonalityChange($0) }
+            )) {
+                ForEach(RecurringSeasonality.allCases, id: \.self) { season in
+                    Text(season.rawValue).tag(season)
+                }
+            }
+            .pickerStyle(.menu)
+        }
+    }
+
+    private func getCurrentSeasonality() -> RecurringSeasonality {
+        let itemNormalizedName = item.normalizedName
+        let descriptor = FetchDescriptor<RecurringItem>(
+            predicate: #Predicate { $0.normalizedName == itemNormalizedName }
+        )
+        if let existing = try? modelContext.fetch(descriptor).first {
+            return existing.seasonality
+        }
+        return .allYear
+    }
+}
 
 struct FloatingAddItemBar: View {
     @Binding var newItemName: String
