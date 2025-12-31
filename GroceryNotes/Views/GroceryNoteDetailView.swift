@@ -205,7 +205,7 @@ struct GroceryNoteDetailView: View {
                                 )
                                 .id(item.id)
                                 .listRowBackground(Color.clear)
-                                .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                                .listRowInsets(EdgeInsets(top: -0.5, leading: 24, bottom: -0.5, trailing: 24))
                                 .listRowSeparator(.hidden)
                                 .zIndex(1) // Items at higher z-index to appear above title
                                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
@@ -292,7 +292,7 @@ struct GroceryNoteDetailView: View {
                             }
                         )
                         .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 0, leading: 24, bottom: 0, trailing: 24))
+                        .listRowInsets(EdgeInsets(top: -0.5, leading: 24, bottom: -0.5, trailing: 24))
                         .listRowSeparator(.hidden)
                         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                             Button(role: .destructive) {
@@ -1572,28 +1572,30 @@ struct ItemRowView: View {
     }
 
     var body: some View {
-        GeometryReader { geometry in
-            compactRow
-                .background(
-                    ZStack {
-                        VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
-                            .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadius))
+        compactRow
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear {
+                            itemFrame = geometry.frame(in: .global)
+                            print("📍 ItemRowView onAppear - frame: \(itemFrame)")
+                        }
+                        .onChange(of: geometry.frame(in: .global)) { _, newFrame in
+                            itemFrame = newFrame
+                            print("📍 ItemRowView onChange - frame: \(itemFrame)")
+                        }
+                }
+            )
+            .background(
+                ZStack {
+                    VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
+                        .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadius))
 
-                        UnevenRoundedRectangle(cornerRadii: cornerRadius)
-                            .strokeBorder(.white, lineWidth: 1)
-                    }
-                )
-                .opacity(isExpanded ? 0 : 1)
-                .onAppear {
-                    itemFrame = geometry.frame(in: .global)
-                    print("📍 ItemRowView onAppear - frame: \(itemFrame)")
+                    UnevenRoundedRectangle(cornerRadii: cornerRadius)
+                        .strokeBorder(.white, lineWidth: 1)
                 }
-                .onChange(of: geometry.frame(in: .global)) { _, newFrame in
-                    itemFrame = newFrame
-                    print("📍 ItemRowView onChange - frame: \(itemFrame)")
-                }
-        }
-        .frame(height: 60)  // Fixed height for the row
+            )
+            .opacity(isExpanded ? 0 : 1)
     }
 
     private var compactRow: some View {
