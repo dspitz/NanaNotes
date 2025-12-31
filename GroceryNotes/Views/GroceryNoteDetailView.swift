@@ -1793,6 +1793,7 @@ struct FloatingExpandedItemView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                .padding(.top, 24)
                 .opacity(isExpanding ? 1 : 0)
                 .frame(height: isExpanding ? nil : 0)
                 .clipped()
@@ -1891,15 +1892,19 @@ struct FloatingExpandedItemView: View {
     }
 
     private var quantityRow: some View {
-        HStack(spacing: 12) {
+        let quantityValue = Int(item.quantity ?? "1") ?? 1
+        let isMinimum = quantityValue <= 1
+
+        return HStack(spacing: 12) {
             Button {
                 onQuantityChange(-1)
             } label: {
                 Image(systemName: "minus.circle.fill")
                     .font(.system(size: 24))
-                    .foregroundStyle(.gray)
+                    .foregroundStyle(isMinimum ? .gray : .blue)
             }
             .buttonStyle(.plain)
+            .disabled(isMinimum)
 
             Text(item.quantity ?? "1")
                 .font(.outfit(16))
@@ -1915,6 +1920,7 @@ struct FloatingExpandedItemView: View {
             .buttonStyle(.plain)
         }
         .frame(maxWidth: .infinity)
+        .padding(.bottom, 24)
     }
 
     private var recurringRow: some View {
