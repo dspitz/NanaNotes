@@ -1706,6 +1706,7 @@ struct FloatingExpandedItemView: View {
 
     @State private var editedName: String = ""
     @FocusState private var isEditingFocused: Bool
+    @State private var showTitleBackground = false
     @Environment(\.modelContext) private var modelContext
 
     var body: some View {
@@ -1717,7 +1718,7 @@ struct FloatingExpandedItemView: View {
 
             // Quantity row - centered, above divider
             quantityRow
-                .padding(.bottom, 16)
+                .padding(.bottom, 12)
                 .opacity(isExpanding ? 1 : 0)
                 .animation(isExpanding ? .spring(response: 0.4, dampingFraction: 0.7) : .easeOut(duration: 0.1), value: isExpanding)
                 .frame(height: isExpanding ? nil : 0)
@@ -1753,6 +1754,17 @@ struct FloatingExpandedItemView: View {
             }
         )
         .shadow(color: .black.opacity(0.3), radius: 30, x: 0, y: 10)
+        .onChange(of: isExpanding) { oldValue, newValue in
+            if newValue {
+                // When expanding, wait for animation to settle (0.5s) then fade in background
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    showTitleBackground = true
+                }
+            } else {
+                // When collapsing, immediately hide background
+                showTitleBackground = false
+            }
+        }
     }
 
     private var compactHeader: some View {
@@ -1789,11 +1801,19 @@ struct FloatingExpandedItemView: View {
                             Text(item.name)
                                 .modifier(AnimatableOutfitFontModifier(size: isExpanding ? 24 : 16, weight: isExpanding ? 600 : 400))
                                 .strikethrough(item.isChecked)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.black.opacity(showTitleBackground ? 0.05 : 0))
+                                )
+                                .animation(.easeInOut(duration: 0.5), value: showTitleBackground)
                         }
                         .buttonStyle(.plain)
+                        .padding(.bottom, isExpanding ? 12 : 0)
                     }
                 }
-                .padding(.top, 24)
+                .padding(.top, isExpanding ? 24 : 0)
                 .opacity(isExpanding ? 1 : 0)
                 .frame(height: isExpanding ? nil : 0)
                 .clipped()
