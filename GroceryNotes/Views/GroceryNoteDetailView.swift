@@ -1719,12 +1719,14 @@ struct FloatingExpandedItemView: View {
             quantityRow
                 .padding(.bottom, 16)
                 .opacity(isExpanding ? 1 : 0)
+                .animation(isExpanding ? .spring(response: 0.4, dampingFraction: 0.7) : .easeOut(duration: 0.1), value: isExpanding)
                 .frame(height: isExpanding ? nil : 0)
 
             // Always include controls in hierarchy so they move with parent
             Divider()
                 .padding(.horizontal, 16)
                 .opacity(isExpanding ? 1 : 0)
+                .animation(isExpanding ? .spring(response: 0.4, dampingFraction: 0.7) : .easeOut(duration: 0.1), value: isExpanding)
                 .frame(height: isExpanding ? nil : 0)
 
             // Expanded controls
@@ -1737,6 +1739,7 @@ struct FloatingExpandedItemView: View {
             }
             .padding(16)
             .opacity(isExpanding ? 1 : 0)
+            .animation(isExpanding ? .spring(response: 0.4, dampingFraction: 0.7) : .easeOut(duration: 0.1), value: isExpanding)
             .frame(height: isExpanding ? nil : 0)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: item.isRecurring)
