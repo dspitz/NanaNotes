@@ -238,6 +238,7 @@ struct PopularRecipeCard: View {
                         .foregroundStyle(.primary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
+                        .frame(height: 40, alignment: .topLeading)
 
                     // Recipe source
                     if let source = recipe.popularitySource {
