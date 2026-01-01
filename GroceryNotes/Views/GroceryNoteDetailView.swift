@@ -636,7 +636,7 @@ struct GroceryNoteDetailView: View {
         }
         .sheet(isPresented: $showingPopularRecipesSheet) {
             PopularRecipesSheet(searchQuery: pendingMealIdea ?? "") { selectedRecipe in
-                pendingMealIdea = nil
+                // Keep pendingMealIdea so search results are preserved when navigating back
                 currentRecipe = selectedRecipe
 
                 // If recipe has no ingredients, it's partial data - show loading state
