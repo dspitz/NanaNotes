@@ -146,8 +146,25 @@ struct AuthenticationView: View {
             } catch {
                 print("❌ Email authentication failed: \(error)")
                 print("❌ Error details: \(error.localizedDescription)")
+
+                // Provide helpful error messages
+                let friendlyMessage: String
+                if error.localizedDescription.contains("malformed") || error.localizedDescription.contains("expired") {
+                    if isSignUp {
+                        friendlyMessage = "Sign up failed. Please check your email format and ensure password is at least 6 characters."
+                    } else {
+                        friendlyMessage = "Account not found. Try signing up first or use 'Continue as Guest'."
+                    }
+                } else if error.localizedDescription.contains("network") {
+                    friendlyMessage = "Network error. Please check your internet connection."
+                } else if error.localizedDescription.contains("password") {
+                    friendlyMessage = "Password must be at least 6 characters."
+                } else {
+                    friendlyMessage = error.localizedDescription
+                }
+
                 await MainActor.run {
-                    errorMessage = error.localizedDescription
+                    errorMessage = friendlyMessage
                     isLoading = false
                 }
             }
