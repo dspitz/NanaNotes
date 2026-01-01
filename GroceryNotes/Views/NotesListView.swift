@@ -8,6 +8,8 @@ struct NotesListView: View {
     @State private var showingNewNoteOptions = false
     @State private var selectedNote: GroceryNote?
     @State private var showingJoinList = false
+    @State private var showingProfile = false
+    @State private var authService = FirebaseAuthService.shared
 
     var body: some View {
         NavigationStack {
@@ -16,10 +18,23 @@ struct NotesListView: View {
                 Color(red: 0.882, green: 0.882, blue: 0.882) // #E1E1E1
                     .ignoresSafeArea()
 
-                // "+" button in top right
+                // Profile and "+" buttons in top corners
                 VStack {
                     HStack {
+                        // Profile button (top left)
+                        Button {
+                            showingProfile = true
+                        } label: {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(.black)
+                        }
+                        .padding(.leading, 24)
+                        .padding(.top, 16)
+
                         Spacer()
+
+                        // "+" button (top right)
                         Menu {
                             Button {
                                 let newNote = createNewNote(withRecurringItems: true)
@@ -97,6 +112,9 @@ struct NotesListView: View {
                         // Successfully joined - listId is the Firebase list ID
                         // You can navigate to it or show a success message
                     }
+                }
+                .sheet(isPresented: $showingProfile) {
+                    ProfileSheet()
                 }
                 .overlay {
                     if notes.isEmpty {
