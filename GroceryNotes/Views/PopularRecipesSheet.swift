@@ -427,8 +427,118 @@ struct WebView: UIViewRepresentable {
     let url: URL
 
     func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
+        let config = WKWebViewConfiguration()
+        let userContentController = WKUserContentController()
+
+        // Inject CSS to hide ads, popups, and annoying elements
+        let cssString = """
+        /* Hide common ad and popup elements */
+        [class*="ad-"], [id*="ad-"],
+        [class*="advertisement"], [id*="advertisement"],
+        [class*="popup"], [id*="popup"],
+        [class*="modal"], [id*="modal"],
+        [class*="cookie"], [id*="cookie"],
+        [class*="consent"], [id*="consent"],
+        [class*="newsletter"], [id*="newsletter"],
+        [class*="subscribe"], [id*="subscribe"],
+        [class*="overlay"], [id*="overlay"],
+        iframe[src*="doubleclick"],
+        iframe[src*="googlesyndication"],
+        iframe[src*="ads"],
+        .ad, .ads, .advert, .advertisement,
+        #ad, #ads, #advert, #advertisement {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            height: 0 !important;
+            width: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+        }
+
+        /* Prevent scroll locking from modals */
+        html, body {
+            overflow: auto !important;
+            position: relative !important;
+        }
+
+        /* Improve readability */
+        body {
+            max-width: 100% !important;
+            padding: 0 16px !important;
+        }
+
+        /* Hide sticky headers/footers that might overlap */
+        [style*="position: fixed"],
+        [style*="position:fixed"] {
+            position: relative !important;
+        }
+        """
+
+        let cssScript = WKUserScript(
+            source: """
+            var style = document.createElement('style');
+            style.innerHTML = `\(cssString)`;
+            document.head.appendChild(style);
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+
+        // JavaScript to remove popups and enable scrolling
+        let jsScript = WKUserScript(
+            source: """
+            // Remove common popup/modal elements after page load
+            setTimeout(function() {
+                // Remove overlay/modal elements
+                var selectors = [
+                    '[class*="overlay"]', '[id*="overlay"]',
+                    '[class*="modal"]', '[id*="modal"]',
+                    '[class*="popup"]', '[id*="popup"]',
+                    '[class*="cookie"]', '[id*="cookie"]',
+                    '[class*="consent"]', '[id*="consent"]',
+                    '[role="dialog"]', '[aria-modal="true"]'
+                ];
+
+                selectors.forEach(function(selector) {
+                    var elements = document.querySelectorAll(selector);
+                    elements.forEach(function(el) {
+                        // Check if it's a blocking overlay
+                        var styles = window.getComputedStyle(el);
+                        if (styles.position === 'fixed' || styles.position === 'absolute') {
+                            if (styles.zIndex > 100 || el.getAttribute('role') === 'dialog') {
+                                el.remove();
+                            }
+                        }
+                    });
+                });
+
+                // Re-enable scrolling
+                document.body.style.overflow = 'auto';
+                document.documentElement.style.overflow = 'auto';
+                document.body.style.position = 'relative';
+            }, 1000);
+
+            // Keep checking and removing in case popups appear later
+            setInterval(function() {
+                document.body.style.overflow = 'auto';
+                document.documentElement.style.overflow = 'auto';
+            }, 500);
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+
+        userContentController.addUserScript(cssScript)
+        userContentController.addUserScript(jsScript)
+        config.userContentController = userContentController
+
+        // Block pop-ups
+        config.preferences.javaScriptCanOpenWindowsAutomatically = false
+
+        let webView = WKWebView(frame: .zero, configuration: config)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
+
         return webView
     }
 
