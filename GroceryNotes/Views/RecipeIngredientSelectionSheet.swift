@@ -35,53 +35,45 @@ struct RecipeIngredientSelectionSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Recipe Header
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Recipe Image with shimmer
-                        if isLoadingImage || recipe?.imageURL == nil {
-                            ShimmerView()
-                                .frame(width: UIScreen.main.bounds.width, height: 240)
-                        } else if let imageURL = recipe?.imageURL, let url = URL(string: imageURL) {
-                            AsyncImage(url: url) { phase in
-                                switch phase {
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .scaledToFill()
-                                        .frame(width: UIScreen.main.bounds.width, height: 240)
-                                        .clipped()
-                                case .failure(_):
-                                    Rectangle()
-                                        .fill(Color.gray.opacity(0.2))
-                                        .frame(width: UIScreen.main.bounds.width, height: 240)
-                                        .overlay {
-                                            Image(systemName: "photo")
-                                                .font(.largeTitle)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                case .empty:
-                                    ShimmerView()
-                                        .frame(width: UIScreen.main.bounds.width, height: 240)
-                                @unknown default:
-                                    EmptyView()
-                                }
+            ZStack(alignment: .topLeading) {
+                VStack(spacing: 0) {
+                    // Recipe Image at top edge
+                    if isLoadingImage || recipe?.imageURL == nil {
+                        ShimmerView()
+                            .frame(width: UIScreen.main.bounds.width, height: 240)
+                    } else if let imageURL = recipe?.imageURL, let url = URL(string: imageURL) {
+                        AsyncImage(url: url) { phase in
+                            switch phase {
+                            case .success(let image):
+                                image
+                                    .resizable()
+                                    .scaledToFill()
+                                    .frame(width: UIScreen.main.bounds.width, height: 240)
+                                    .clipped()
+                            case .failure(_):
+                                Rectangle()
+                                    .fill(Color.gray.opacity(0.2))
+                                    .frame(width: UIScreen.main.bounds.width, height: 240)
+                                    .overlay {
+                                        Image(systemName: "photo")
+                                            .font(.largeTitle)
+                                            .foregroundStyle(.secondary)
+                                    }
+                            case .empty:
+                                ShimmerView()
+                                    .frame(width: UIScreen.main.bounds.width, height: 240)
+                            @unknown default:
+                                EmptyView()
                             }
                         }
+                    }
 
-                        // Recipe Title & Info with shimmer
-                        VStack(alignment: .leading, spacing: 8) {
-                            if isLoadingRecipe || recipe == nil {
-                                ShimmerView()
-                                    .frame(height: 28)
-                                    .frame(maxWidth: 200)
-                                ShimmerView()
-                                    .frame(height: 40)
-                                ShimmerView()
-                                    .frame(height: 16)
-                                    .frame(maxWidth: 150)
-                            } else if let recipe = recipe {
+                    // Recipe Header and content
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            // Recipe Title & Info - show immediately if recipe exists
+                            VStack(alignment: .leading, spacing: 8) {
+                                if let recipe = recipe {
                                 Text(recipe.title)
                                     .font(.title2)
                                     .fontWeight(.bold)
@@ -287,14 +279,18 @@ struct RecipeIngredientSelectionSheet: View {
                     .background(Color(.systemBackground))
                 }
             }
-            .navigationTitle("Add Ingredients")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+            .navigationBarHidden(true)
+
+                // Cancel button overlaid on image
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 30))
+                        .foregroundStyle(.white)
+                        .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
+                .padding(16)
             }
             .onChange(of: isLoadingRecipe) { _, isLoading in
                 // When recipe finishes loading, preselect all ingredients except staples
