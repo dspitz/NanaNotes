@@ -256,34 +256,36 @@ struct RecipeIngredientSelectionSheet: View {
                     }
                 }
 
-                // Bottom CTA
-                VStack(spacing: 0) {
-                    Divider()
+                // Bottom CTA - only show when ingredients are loaded
+                if !isLoadingRecipe, let recipe = recipe, !recipe.ingredients.isEmpty {
+                    VStack(spacing: 0) {
+                        Divider()
 
-                    Button {
-                        addSelectedIngredientsToList()
-                    } label: {
-                        HStack {
-                            if isAddingIngredients {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .tint(.white)
-                            } else {
-                                Text("Add \(selectedIngredients.count) Ingredient\(selectedIngredients.count == 1 ? "" : "s") to List")
-                                    .fontWeight(.semibold)
+                        Button {
+                            addSelectedIngredientsToList()
+                        } label: {
+                            HStack {
+                                if isAddingIngredients {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                        .tint(.white)
+                                } else {
+                                    Text("Add \(selectedIngredients.count) Ingredient\(selectedIngredients.count == 1 ? "" : "s") to List")
+                                        .fontWeight(.semibold)
+                                }
                             }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(selectedIngredients.isEmpty ? Color.gray : Color.blue)
+                            .foregroundStyle(.white)
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(selectedIngredients.isEmpty ? Color.gray : Color.blue)
-                        .foregroundStyle(.white)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .disabled(selectedIngredients.isEmpty || isAddingIngredients)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     }
-                    .disabled(selectedIngredients.isEmpty || isAddingIngredients)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .background(Color(.systemBackground))
                 }
-                .background(Color(.systemBackground))
             }
             .navigationTitle("Add Ingredients")
             .navigationBarTitleDisplayMode(.inline)
