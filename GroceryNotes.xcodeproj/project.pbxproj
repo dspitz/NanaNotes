@@ -14,6 +14,7 @@
 		75E0F67435834A14BC033FF4 /* AuthenticationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F87BC7021B9D46DBA57AF3CF /* AuthenticationView.swift */; };
 		7A02D5722F005A4800D5CCC5 /* PopularRecipesSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */; };
 		7A02D5742F022BB300D5CCC5 /* GoogleSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7A02D5732F022BB300D5CCC5 /* GoogleSearchService.swift */; };
+		7A02D5782F06DF0100D5CCC5 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7A02D5772F06DF0100D5CCC5 /* GoogleService-Info.plist */; };
 		7AA8B7D22EF1CA81000CBD35 /* Config.xcconfig in Resources */ = {isa = PBXBuildFile; fileRef = 7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */; };
 		7AE4CA2C2EF5F297009A7C4E /* Outfit-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */; };
 		7AE4CA2D2EF5F297009A7C4E /* Outfit-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 7AE4CA292EF5F297009A7C4E /* Outfit-Regular.ttf */; };
@@ -51,7 +52,6 @@
 		AAAEA7877D6B444AC4BAB200 /* RecipeURLService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAA372FCE5A0794EABBB0A05 /* RecipeURLService.swift */; };
 		AAD25B8DC9E86F42AE97BE07 /* SpeechRecognitionService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AAE4C93F20027B4DC78DF58D /* SpeechRecognitionService.swift */; };
 		E126B79AA8B448449FB50FCE /* JoinListSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CCEC3905F3D498F8FF0B2B2 /* JoinListSheet.swift */; };
-		F4382C84EE924942AA4158CB /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 7700BB8135224B3AA75E265B /* GoogleService-Info.plist */; };
 		FC697BE4FFB9466FBAE0B76A /* FirebaseAuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */; };
 /* End PBXBuildFile section */
 
@@ -59,9 +59,9 @@
 		1378A1EC5B634CBC8A75DC7C /* View+OutfitFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "View+OutfitFont.swift"; sourceTree = "<group>"; };
 		20D51C89B4034B33A7D535BA /* Font+Outfit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Font+Outfit.swift"; sourceTree = "<group>"; };
 		2A75B8C3077D4BCBAB5E1CFF /* FirebaseAuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirebaseAuthService.swift; sourceTree = "<group>"; };
-		7700BB8135224B3AA75E265B /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		7A02D5712F005A4800D5CCC5 /* PopularRecipesSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PopularRecipesSheet.swift; sourceTree = "<group>"; };
 		7A02D5732F022BB300D5CCC5 /* GoogleSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GoogleSearchService.swift; sourceTree = "<group>"; };
+		7A02D5772F06DF0100D5CCC5 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 		7AE4CA232EF5F297009A7C4E /* Outfit-Black.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Black.ttf"; sourceTree = "<group>"; };
 		7AE4CA242EF5F297009A7C4E /* Outfit-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Outfit-Bold.ttf"; sourceTree = "<group>"; };
@@ -137,6 +137,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000400000000000000001 /* GroceryNotes */,
+				7A02D5772F06DF0100D5CCC5 /* GoogleService-Info.plist */,
 				AA0000410000000000000001 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -154,7 +155,6 @@
 				7AA8B7D12EF1CA80000CBD35 /* Config.xcconfig */,
 				018FCAB1552640A8BCFA4C47 /* Fonts */,
 				AB0B21601D58426A83F6FDDE /* Extensions */,
-				7700BB8135224B3AA75E265B /* GoogleService-Info.plist */,
 			);
 			path = GroceryNotes;
 			sourceTree = "<group>";
@@ -303,13 +303,13 @@
 				7AE4CA2D2EF5F297009A7C4E /* Outfit-Regular.ttf in Resources */,
 				7AE4CA2E2EF5F297009A7C4E /* Outfit-Light.ttf in Resources */,
 				7AE4CA2F2EF5F297009A7C4E /* Outfit-Black.ttf in Resources */,
+				7A02D5782F06DF0100D5CCC5 /* GoogleService-Info.plist in Resources */,
 				7AE4CA302EF5F297009A7C4E /* Outfit-Thin.ttf in Resources */,
 				7AE4CA312EF5F297009A7C4E /* Outfit-SemiBold.ttf in Resources */,
 				7AE4CA322EF5F297009A7C4E /* Outfit-ExtraBold.ttf in Resources */,
 				7AE4CA332EF5F297009A7C4E /* Outfit-ExtraLight.ttf in Resources */,
 				7AE4CA342EF5F297009A7C4E /* Outfit-Medium.ttf in Resources */,
 				AA0000400000000000000002 /* Assets.xcassets in Resources */,
-				F4382C84EE924942AA4158CB /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

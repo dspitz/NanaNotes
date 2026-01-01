@@ -2,7 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var selectedTab = 0
-    @AppStorage("skipFirebase") private var skipFirebase = true // Firebase disabled (no valid config)
+    @AppStorage("skipFirebase") private var skipFirebase = false // Firebase enabled with real config
     @State private var authService = FirebaseAuthService.shared
 
     var body: some View {
