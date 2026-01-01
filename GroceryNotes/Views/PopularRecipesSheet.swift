@@ -369,12 +369,11 @@ struct RecipeWebViewSheet: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
                 // WebView
                 if let urlString = recipe.sourceURL,
                    let url = URL(string: urlString) {
                     WebView(url: url)
-                        .ignoresSafeArea(edges: .bottom)
                 } else {
                     ContentUnavailableView(
                         "Recipe URL Not Available",
@@ -383,22 +382,27 @@ struct RecipeWebViewSheet: View {
                     )
                 }
 
-                // Floating CTA button
-                Button {
-                    onAddIngredientsToList()
-                    dismiss()
-                } label: {
-                    Text("Add Ingredients to List")
-                        .font(.outfit(17, weight: .semiBold))
-                        .foregroundStyle(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(Color.blue)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                // Fixed footer with CTA button
+                VStack(spacing: 0) {
+                    Divider()
+
+                    Button {
+                        onAddIngredientsToList()
+                        dismiss()
+                    } label: {
+                        Text("Add Ingredients to List")
+                            .font(.outfit(17, weight: .semiBold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
+                            .background(Color.blue)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 12)
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
+                .background(Color(.systemBackground))
             }
             .navigationTitle(recipe.title)
             .navigationBarTitleDisplayMode(.inline)
