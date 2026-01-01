@@ -101,14 +101,27 @@ struct RecipeIngredientSelectionSheet: View {
                                         if let score = recipe.popularityScore {
                                             Spacer()
                                             HStack(spacing: 4) {
-                                                // Show stars based on score (0-10 scale, convert to 0-5 stars)
-                                                let starCount = Int((score / 10.0) * 5.0)
+                                                // Show stars based on score (assuming 0-5 scale)
+                                                let clampedScore = min(max(score, 0), 5)
+                                                let fullStars = Int(clampedScore)
+                                                let hasHalfStar = clampedScore - Double(fullStars) >= 0.5
+
                                                 ForEach(0..<5, id: \.self) { index in
-                                                    Image(systemName: index < starCount ? "star.fill" : "star")
-                                                        .font(.caption)
-                                                        .foregroundStyle(index < starCount ? .yellow : .gray.opacity(0.3))
+                                                    if index < fullStars {
+                                                        Image(systemName: "star.fill")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.yellow)
+                                                    } else if index == fullStars && hasHalfStar {
+                                                        Image(systemName: "star.leadinghalf.filled")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.yellow)
+                                                    } else {
+                                                        Image(systemName: "star")
+                                                            .font(.caption)
+                                                            .foregroundStyle(.gray.opacity(0.3))
+                                                    }
                                                 }
-                                                Text(String(format: "%.1f", score / 2.0))
+                                                Text(String(format: "%.1f", clampedScore))
                                                     .font(.caption)
                                                     .foregroundStyle(.secondary)
                                             }
@@ -281,11 +294,11 @@ struct RecipeIngredientSelectionSheet: View {
             }
             .navigationBarHidden(true)
 
-                // Cancel button overlaid on image
+                // Back button overlaid on image
                 Button {
                     dismiss()
                 } label: {
-                    Image(systemName: "xmark.circle.fill")
+                    Image(systemName: "chevron.left.circle.fill")
                         .font(.system(size: 30))
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
