@@ -1347,6 +1347,11 @@ struct GroceryNoteDetailView: View {
             return false
         }
 
+        // If it contains "recipe", it's definitely a meal idea
+        if lowercased.contains("recipe") {
+            return true
+        }
+
         // Check if it's a known grocery item first (check against our 500+ item database)
         let categorizationService = CategorizationService(modelContext: modelContext)
         let normalized = lowercased.trimmingCharacters(in: .whitespaces)
