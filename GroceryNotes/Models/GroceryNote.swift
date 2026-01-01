@@ -10,6 +10,7 @@ final class GroceryNote {
     var completedAt: Date?
     var storeProfileId: String?
     var shareMetadata: Data?
+    var firebaseListId: String?
 
     @Relationship(deleteRule: .cascade, inverse: \GroceryItem.note)
     var items: [GroceryItem]
@@ -22,6 +23,7 @@ final class GroceryNote {
         completedAt: Date? = nil,
         storeProfileId: String? = nil,
         shareMetadata: Data? = nil,
+        firebaseListId: String? = nil,
         items: [GroceryItem] = []
     ) {
         self.id = id
@@ -31,6 +33,7 @@ final class GroceryNote {
         self.completedAt = completedAt
         self.storeProfileId = storeProfileId
         self.shareMetadata = shareMetadata
+        self.firebaseListId = firebaseListId
         self.items = items
     }
 

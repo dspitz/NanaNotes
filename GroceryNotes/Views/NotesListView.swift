@@ -273,6 +273,7 @@ struct ProfileSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var authService = FirebaseAuthService.shared
     @State private var showingSignOutConfirmation = false
+    @State private var showingJoinList = false
     @AppStorage("skipFirebase") private var skipFirebase = false
 
     var body: some View {
@@ -311,6 +312,22 @@ struct ProfileSheet: View {
                         .padding(.leading, 12)
                     }
                     .padding(.vertical, 8)
+                }
+
+                // Collaboration Section
+                if !skipFirebase && authService.currentUser != nil {
+                    Section {
+                        Button {
+                            showingJoinList = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "person.badge.plus")
+                                Text("Join Shared List")
+                            }
+                        }
+                    } header: {
+                        Text("Collaboration")
+                    }
                 }
 
                 // Actions Section
@@ -353,6 +370,13 @@ struct ProfileSheet: View {
                     Button("Done") {
                         dismiss()
                     }
+                }
+            }
+            .sheet(isPresented: $showingJoinList) {
+                JoinListSheet { listId in
+                    print("✅ Successfully joined list: \(listId)")
+                    // TODO: Navigate to the joined list or show success message
+                    dismiss()
                 }
             }
             .confirmationDialog("Sign Out", isPresented: $showingSignOutConfirmation) {

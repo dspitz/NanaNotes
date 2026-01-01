@@ -45,7 +45,7 @@ struct GroceryNoteDetailView: View {
 
     // Sharing states
     @State private var showingShareSheet = false
-    @State private var firebaseListId: String?
+    @State private var isCreatingFirebaseList = false
 
     // Scroll to newly added item
     @State private var scrollToItemId: UUID?
@@ -573,14 +573,13 @@ struct GroceryNoteDetailView: View {
 
             ToolbarItem(placement: .primaryAction) {
                 Menu {
-                    // Firebase sharing disabled for now
-                    // Button {
-                    //     showingShareSheet = true
-                    // } label: {
-                    //     Label("Share List", systemImage: "person.2")
-                    // }
-                    //
-                    // Divider()
+                    Button {
+                        prepareForSharing()
+                    } label: {
+                        Label("Share List", systemImage: "person.2")
+                    }
+
+                    Divider()
 
                     Button {
                         if note.isCompleted {
@@ -608,8 +607,10 @@ struct GroceryNoteDetailView: View {
             }
         }
         .sheet(isPresented: $showingShareSheet) {
-            if let listId = firebaseListId {
+            if let listId = note.firebaseListId {
                 ShareListSheet(note: note, listId: listId)
+            } else if isCreatingFirebaseList {
+                ProgressView("Creating shareable list...")
             }
         }
         .sheet(isPresented: $showingEditSheet) {
@@ -743,6 +744,53 @@ struct GroceryNoteDetailView: View {
             loadMealDrafts()
         }
     }
+
+    // MARK: - Sharing Functions
+
+    private func prepareForSharing() {
+        // If already has Firebase list, show share sheet
+        if note.firebaseListId != nil {
+            showingShareSheet = true
+            return
+        }
+
+        // Otherwise, create Firebase list first
+        isCreatingFirebaseList = true
+        showingShareSheet = true
+
+        Task {
+            do {
+                guard let userId = FirebaseAuthService.shared.currentUser?.uid else {
+                    print("❌ No authenticated user")
+                    await MainActor.run {
+                        isCreatingFirebaseList = false
+                        showingShareSheet = false
+                    }
+                    return
+                }
+
+                print("🔵 Creating Firebase list for note: \(note.title)")
+                let listId = try await FirestoreSyncService.shared.createList(
+                    title: note.title,
+                    userId: userId
+                )
+
+                await MainActor.run {
+                    note.firebaseListId = listId
+                    isCreatingFirebaseList = false
+                    print("✅ Firebase list created: \(listId)")
+                }
+            } catch {
+                print("❌ Failed to create Firebase list: \(error)")
+                await MainActor.run {
+                    isCreatingFirebaseList = false
+                    showingShareSheet = false
+                }
+            }
+        }
+    }
+
+    // MARK: - Item Management Functions
 
     private func addCommaSeparatedItems(_ input: String) {
         // Split by comma and process each item
