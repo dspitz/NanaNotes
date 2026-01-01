@@ -135,12 +135,17 @@ struct AuthenticationView: View {
 
         Task {
             do {
+                print("🔐 Attempting email authentication...")
                 if isSignUp {
                     _ = try await authService.signUp(email: email, password: password)
+                    print("✅ Sign up successful")
                 } else {
                     _ = try await authService.signIn(email: email, password: password)
+                    print("✅ Sign in successful")
                 }
             } catch {
+                print("❌ Email authentication failed: \(error)")
+                print("❌ Error details: \(error.localizedDescription)")
                 await MainActor.run {
                     errorMessage = error.localizedDescription
                     isLoading = false
@@ -173,10 +178,14 @@ struct AuthenticationView: View {
 
         Task {
             do {
+                print("🔐 Attempting anonymous sign-in...")
                 _ = try await authService.signInAnonymously()
+                print("✅ Anonymous sign-in successful")
             } catch {
+                print("❌ Anonymous sign-in failed: \(error)")
+                print("❌ Error details: \(error.localizedDescription)")
                 await MainActor.run {
-                    errorMessage = error.localizedDescription
+                    errorMessage = "Sign-in failed: \(error.localizedDescription)"
                     isLoading = false
                 }
             }
