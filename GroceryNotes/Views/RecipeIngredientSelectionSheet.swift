@@ -96,6 +96,34 @@ struct RecipeIngredientSelectionSheet: View {
                                 }
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
+
+                                // Source and rating info
+                                if let source = recipe.popularitySource {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "link")
+                                            .font(.caption)
+                                        Text(source)
+                                            .font(.caption)
+                                            .fontWeight(.medium)
+
+                                        if let score = recipe.popularityScore {
+                                            Spacer()
+                                            HStack(spacing: 4) {
+                                                // Show stars based on score (0-10 scale, convert to 0-5 stars)
+                                                let starCount = Int((score / 10.0) * 5.0)
+                                                ForEach(0..<5, id: \.self) { index in
+                                                    Image(systemName: index < starCount ? "star.fill" : "star")
+                                                        .font(.caption)
+                                                        .foregroundStyle(index < starCount ? .yellow : .gray.opacity(0.3))
+                                                }
+                                                Text(String(format: "%.1f", score / 2.0))
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                    .foregroundStyle(.blue)
+                                }
                             }
 
                             // Source URL if available
