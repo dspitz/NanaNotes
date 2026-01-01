@@ -446,7 +446,7 @@ struct GroceryNoteDetailView: View {
 
             // Overlay: Dark scrim when expanded
             if expandedItemId != nil {
-                Color.black.opacity(isExpanding ? 0.3 : 0)
+                Color.black.opacity(isExpanding ? 0.16 : 0)
                     .ignoresSafeArea()
                     .allowsHitTesting(isExpanding)
                     .onTapGesture {
