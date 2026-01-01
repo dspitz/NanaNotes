@@ -1,6 +1,5 @@
 import SwiftUI
 import SwiftData
-import WebKit
 
 struct PopularRecipesSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -12,8 +11,6 @@ struct PopularRecipesSheet: View {
     @State private var recipes: [MealRecipe] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
-    @State private var showingRecipeWebView = false
-    @State private var selectedRecipe: MealRecipe?
 
     var body: some View {
         NavigationStack {
@@ -95,13 +92,6 @@ struct PopularRecipesSheet: View {
                 }
             }
         }
-        .sheet(isPresented: $showingRecipeWebView) {
-            if let recipe = selectedRecipe {
-                RecipeWebViewSheet(recipe: recipe) {
-                    handleAddIngredientsToList(recipe)
-                }
-            }
-        }
         .onAppear {
             print("🔍 PopularRecipesSheet appeared with searchQuery: '\(searchQuery)'")
             loadPopularRecipes()
@@ -141,22 +131,12 @@ struct PopularRecipesSheet: View {
     }
 
     private func handleRecipeSelection(_ recipe: MealRecipe) {
-        guard recipe.sourceURL != nil else {
+        guard let sourceURL = recipe.sourceURL else {
             errorMessage = "Recipe URL not available"
             return
         }
 
-        // Show webview with the recipe
-        selectedRecipe = recipe
-        showingRecipeWebView = true
-    }
-
-    private func handleAddIngredientsToList(_ recipe: MealRecipe) {
-        guard let sourceURL = recipe.sourceURL else {
-            return
-        }
-
-        // Show recipe sheet with partial data immediately
+        // Immediately show recipe sheet with partial data
         onRecipeSelected(recipe)
         dismiss()
 
@@ -356,194 +336,5 @@ struct ShimmerView: View {
                     }
                 }
         }
-    }
-}
-
-// MARK: - RecipeWebViewSheet
-
-struct RecipeWebViewSheet: View {
-    @Environment(\.dismiss) private var dismiss
-
-    let recipe: MealRecipe
-    let onAddIngredientsToList: () -> Void
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // WebView
-                if let urlString = recipe.sourceURL,
-                   let url = URL(string: urlString) {
-                    WebView(url: url)
-                } else {
-                    ContentUnavailableView(
-                        "Recipe URL Not Available",
-                        systemImage: "link.slash",
-                        description: Text("Could not load recipe")
-                    )
-                }
-
-                // Fixed footer with CTA button
-                VStack(spacing: 0) {
-                    Divider()
-
-                    Button {
-                        onAddIngredientsToList()
-                        dismiss()
-                    } label: {
-                        Text("Add Ingredients to List")
-                            .font(.outfit(17, weight: .semiBold))
-                            .foregroundStyle(.white)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                            .background(Color.blue)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 12)
-                    .padding(.bottom, 12)
-                }
-                .background(Color(.systemBackground))
-            }
-            .navigationTitle(recipe.title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.gray.opacity(0.7))
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - WebView
-
-struct WebView: UIViewRepresentable {
-    let url: URL
-
-    func makeUIView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        let userContentController = WKUserContentController()
-
-        // Inject CSS to hide ads, popups, and annoying elements
-        let cssString = """
-        /* Hide common ad and popup elements */
-        [class*="ad-"], [id*="ad-"],
-        [class*="advertisement"], [id*="advertisement"],
-        [class*="popup"], [id*="popup"],
-        [class*="modal"], [id*="modal"],
-        [class*="cookie"], [id*="cookie"],
-        [class*="consent"], [id*="consent"],
-        [class*="newsletter"], [id*="newsletter"],
-        [class*="subscribe"], [id*="subscribe"],
-        [class*="overlay"], [id*="overlay"],
-        iframe[src*="doubleclick"],
-        iframe[src*="googlesyndication"],
-        iframe[src*="ads"],
-        .ad, .ads, .advert, .advertisement,
-        #ad, #ads, #advert, #advertisement {
-            display: none !important;
-            visibility: hidden !important;
-            opacity: 0 !important;
-            height: 0 !important;
-            width: 0 !important;
-            position: absolute !important;
-            left: -9999px !important;
-        }
-
-        /* Prevent scroll locking from modals */
-        html, body {
-            overflow: auto !important;
-            position: relative !important;
-        }
-
-        /* Improve readability */
-        body {
-            max-width: 100% !important;
-            padding: 0 16px !important;
-        }
-
-        /* Hide sticky headers/footers that might overlap */
-        [style*="position: fixed"],
-        [style*="position:fixed"] {
-            position: relative !important;
-        }
-        """
-
-        let cssScript = WKUserScript(
-            source: """
-            var style = document.createElement('style');
-            style.innerHTML = `\(cssString)`;
-            document.head.appendChild(style);
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-
-        // JavaScript to remove popups and enable scrolling
-        let jsScript = WKUserScript(
-            source: """
-            // Remove common popup/modal elements after page load
-            setTimeout(function() {
-                // Remove overlay/modal elements
-                var selectors = [
-                    '[class*="overlay"]', '[id*="overlay"]',
-                    '[class*="modal"]', '[id*="modal"]',
-                    '[class*="popup"]', '[id*="popup"]',
-                    '[class*="cookie"]', '[id*="cookie"]',
-                    '[class*="consent"]', '[id*="consent"]',
-                    '[role="dialog"]', '[aria-modal="true"]'
-                ];
-
-                selectors.forEach(function(selector) {
-                    var elements = document.querySelectorAll(selector);
-                    elements.forEach(function(el) {
-                        // Check if it's a blocking overlay
-                        var styles = window.getComputedStyle(el);
-                        if (styles.position === 'fixed' || styles.position === 'absolute') {
-                            if (styles.zIndex > 100 || el.getAttribute('role') === 'dialog') {
-                                el.remove();
-                            }
-                        }
-                    });
-                });
-
-                // Re-enable scrolling
-                document.body.style.overflow = 'auto';
-                document.documentElement.style.overflow = 'auto';
-                document.body.style.position = 'relative';
-            }, 1000);
-
-            // Keep checking and removing in case popups appear later
-            setInterval(function() {
-                document.body.style.overflow = 'auto';
-                document.documentElement.style.overflow = 'auto';
-            }, 500);
-            """,
-            injectionTime: .atDocumentEnd,
-            forMainFrameOnly: true
-        )
-
-        userContentController.addUserScript(cssScript)
-        userContentController.addUserScript(jsScript)
-        config.userContentController = userContentController
-
-        // Block pop-ups
-        config.preferences.javaScriptCanOpenWindowsAutomatically = false
-
-        let webView = WKWebView(frame: .zero, configuration: config)
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
-
-        return webView
-    }
-
-    func updateUIView(_ webView: WKWebView, context: Context) {
-        let request = URLRequest(url: url)
-        webView.load(request)
     }
 }
