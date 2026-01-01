@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WebKit
 
 struct PopularRecipesSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -11,6 +12,8 @@ struct PopularRecipesSheet: View {
     @State private var recipes: [MealRecipe] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var showingRecipeWebView = false
+    @State private var selectedRecipe: MealRecipe?
 
     var body: some View {
         NavigationStack {
@@ -92,6 +95,13 @@ struct PopularRecipesSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $showingRecipeWebView) {
+            if let recipe = selectedRecipe {
+                RecipeWebViewSheet(recipe: recipe) {
+                    handleAddIngredientsToList(recipe)
+                }
+            }
+        }
         .onAppear {
             print("🔍 PopularRecipesSheet appeared with searchQuery: '\(searchQuery)'")
             loadPopularRecipes()
@@ -131,12 +141,22 @@ struct PopularRecipesSheet: View {
     }
 
     private func handleRecipeSelection(_ recipe: MealRecipe) {
-        guard let sourceURL = recipe.sourceURL else {
+        guard recipe.sourceURL != nil else {
             errorMessage = "Recipe URL not available"
             return
         }
 
-        // Immediately show recipe sheet with partial data
+        // Show webview with the recipe
+        selectedRecipe = recipe
+        showingRecipeWebView = true
+    }
+
+    private func handleAddIngredientsToList(_ recipe: MealRecipe) {
+        guard let sourceURL = recipe.sourceURL else {
+            return
+        }
+
+        // Show recipe sheet with partial data immediately
         onRecipeSelected(recipe)
         dismiss()
 
@@ -336,5 +356,80 @@ struct ShimmerView: View {
                     }
                 }
         }
+    }
+}
+
+// MARK: - RecipeWebViewSheet
+
+struct RecipeWebViewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+
+    let recipe: MealRecipe
+    let onAddIngredientsToList: () -> Void
+
+    var body: some View {
+        NavigationStack {
+            ZStack(alignment: .bottom) {
+                // WebView
+                if let urlString = recipe.sourceURL,
+                   let url = URL(string: urlString) {
+                    WebView(url: url)
+                        .ignoresSafeArea(edges: .bottom)
+                } else {
+                    ContentUnavailableView(
+                        "Recipe URL Not Available",
+                        systemImage: "link.slash",
+                        description: Text("Could not load recipe")
+                    )
+                }
+
+                // Floating CTA button
+                Button {
+                    onAddIngredientsToList()
+                    dismiss()
+                } label: {
+                    Text("Add Ingredients to List")
+                        .font(.outfit(17, weight: .semiBold))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                        .background(Color.blue)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: Color.black.opacity(0.15), radius: 12, x: 0, y: 4)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            .navigationTitle(recipe.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button {
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.gray.opacity(0.7))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - WebView
+
+struct WebView: UIViewRepresentable {
+    let url: URL
+
+    func makeUIView(context: Context) -> WKWebView {
+        let webView = WKWebView()
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        return webView
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let request = URLRequest(url: url)
+        webView.load(request)
     }
 }
