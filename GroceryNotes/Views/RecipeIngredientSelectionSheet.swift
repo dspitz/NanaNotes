@@ -37,111 +37,81 @@ struct RecipeIngredientSelectionSheet: View {
         NavigationStack {
             ZStack(alignment: .topLeading) {
                 VStack(spacing: 0) {
-                    // Recipe Image at top edge
-                    if isLoadingImage || recipe?.imageURL == nil {
-                        ShimmerView()
-                            .frame(width: UIScreen.main.bounds.width, height: 240)
-                    } else if let imageURL = recipe?.imageURL, let url = URL(string: imageURL) {
-                        AsyncImage(url: url) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .scaledToFill()
-                                    .frame(width: UIScreen.main.bounds.width, height: 240)
-                                    .clipped()
-                            case .failure(_):
-                                Rectangle()
-                                    .fill(Color.gray.opacity(0.2))
-                                    .frame(width: UIScreen.main.bounds.width, height: 240)
-                                    .overlay {
-                                        Image(systemName: "photo")
-                                            .font(.largeTitle)
-                                            .foregroundStyle(.secondary)
-                                    }
-                            case .empty:
-                                ShimmerView()
-                                    .frame(width: UIScreen.main.bounds.width, height: 240)
-                            @unknown default:
-                                EmptyView()
-                            }
-                        }
-                    }
-
                     // Recipe Header and content
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(spacing: 0) {
+                            // Recipe Image at top edge
+                            if isLoadingImage || recipe?.imageURL == nil {
+                                ShimmerView()
+                                    .frame(width: UIScreen.main.bounds.width, height: 240)
+                            } else if let imageURL = recipe?.imageURL, let url = URL(string: imageURL) {
+                                AsyncImage(url: url) { phase in
+                                    switch phase {
+                                    case .success(let image):
+                                        image
+                                            .resizable()
+                                            .scaledToFill()
+                                            .frame(width: UIScreen.main.bounds.width, height: 240)
+                                            .clipped()
+                                    case .failure(_):
+                                        Rectangle()
+                                            .fill(Color.gray.opacity(0.2))
+                                            .frame(width: UIScreen.main.bounds.width, height: 240)
+                                            .overlay {
+                                                Image(systemName: "photo")
+                                                    .font(.largeTitle)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                    case .empty:
+                                        ShimmerView()
+                                            .frame(width: UIScreen.main.bounds.width, height: 240)
+                                    @unknown default:
+                                        EmptyView()
+                                    }
+                                }
+                            }
+
+                        VStack(alignment: .center, spacing: 16) {
                             // Recipe Title & Info - show immediately if recipe exists
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .center, spacing: 8) {
                                 if let recipe = recipe {
                                 Text(recipe.title)
-                                    .font(.title2)
-                                    .fontWeight(.bold)
-
-                                Text(recipe.description)
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
+                                    .font(.outfit(32, weight: .bold))
+                                    .lineSpacing(-4)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.top, 16)
 
                                 HStack(spacing: 16) {
+                                    if let score = recipe.popularityScore {
+                                        Label(String(format: "%.1f", score), systemImage: "star.fill")
+                                    }
                                     Label("\(recipe.servings) servings", systemImage: "person.2")
                                     Label("\(recipe.estimatedTimeMinutes) min", systemImage: "clock")
                                 }
-                                .font(.caption)
+                                .font(.outfit(12))
                                 .foregroundStyle(.secondary)
 
-                                // Source and rating info
+                                Text(recipe.description)
+                                    .font(.outfit(14))
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 16)
+
+                                // Source info
                                 if let source = recipe.popularitySource {
                                     HStack(spacing: 8) {
                                         Image(systemName: "link")
-                                            .font(.caption)
+                                            .font(.outfit(11))
                                         Text(source)
-                                            .font(.caption)
-                                            .fontWeight(.medium)
-
-                                        if let score = recipe.popularityScore {
-                                            Spacer()
-                                            HStack(spacing: 4) {
-                                                // Show stars based on score (assuming 0-5 scale)
-                                                let clampedScore = min(max(score, 0), 5)
-                                                let fullStars = Int(clampedScore)
-                                                let hasHalfStar = clampedScore - Double(fullStars) >= 0.5
-
-                                                ForEach(0..<5, id: \.self) { index in
-                                                    if index < fullStars {
-                                                        Image(systemName: "star.fill")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.yellow)
-                                                    } else if index == fullStars && hasHalfStar {
-                                                        Image(systemName: "star.leadinghalf.filled")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.yellow)
-                                                    } else {
-                                                        Image(systemName: "star")
-                                                            .font(.caption)
-                                                            .foregroundStyle(.gray.opacity(0.3))
-                                                    }
-                                                }
-                                                Text(String(format: "%.1f", clampedScore))
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
+                                            .font(.outfit(11, weight: .medium))
                                     }
                                     .foregroundStyle(.blue)
+                                    .frame(height: 40)
+                                    .padding(.horizontal, 24)
+                                    .background(Color(red: 0.969, green: 0.969, blue: 0.969))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .padding(.top, 16)
                                 }
-                            }
-
-                            // Source URL if available
-                            if let recipe = recipe, let sourceURL = recipe.sourceURL, let url = URL(string: sourceURL) {
-                                Link(destination: url) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "link")
-                                        Text("View original recipe")
-                                    }
-                                    .font(.caption)
-                                    .foregroundStyle(.blue)
-                                }
-                                .padding(.top, 4)
                             }
                         }
                         .padding(.horizontal, 16)
@@ -154,7 +124,7 @@ struct RecipeIngredientSelectionSheet: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Text("Ingredients")
-                                    .font(.headline)
+                                    .font(.outfit(18, weight: .semiBold))
                                 Spacer()
                                 if !isLoadingRecipe, let recipe = recipe {
                                     Button(selectedIngredients.count == recipe.ingredients.count ? "Deselect All" : "Select All") {
@@ -164,7 +134,7 @@ struct RecipeIngredientSelectionSheet: View {
                                             selectedIngredients = Set(recipe.ingredients.map { $0.id })
                                         }
                                     }
-                                    .font(.caption)
+                                    .font(.outfit(12))
                                     .foregroundStyle(.blue)
                                 }
                             }
@@ -214,7 +184,7 @@ struct RecipeIngredientSelectionSheet: View {
 
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Instructions")
-                                .font(.headline)
+                                .font(.outfit(18, weight: .semiBold))
                                 .padding(.horizontal, 16)
 
                             if isLoadingRecipe || recipe == nil {
@@ -222,8 +192,7 @@ struct RecipeIngredientSelectionSheet: View {
                                 ForEach(0..<4, id: \.self) { index in
                                     HStack(alignment: .top, spacing: 12) {
                                         Text("\(index + 1)")
-                                            .font(.body)
-                                            .fontWeight(.bold)
+                                            .font(.outfit(16, weight: .bold))
                                             .foregroundStyle(.blue)
                                             .frame(width: 24, alignment: .trailing)
 
@@ -243,13 +212,12 @@ struct RecipeIngredientSelectionSheet: View {
                                 ForEach(Array(recipe.steps.enumerated()), id: \.offset) { index, step in
                                     HStack(alignment: .top, spacing: 12) {
                                         Text("\(index + 1)")
-                                            .font(.body)
-                                            .fontWeight(.bold)
+                                            .font(.outfit(16, weight: .bold))
                                             .foregroundStyle(.blue)
                                             .frame(width: 24, alignment: .trailing)
 
                                         Text(step)
-                                            .font(.body)
+                                            .font(.outfit(15))
                                             .foregroundStyle(.primary)
                                     }
                                     .padding(.horizontal, 16)
@@ -258,6 +226,7 @@ struct RecipeIngredientSelectionSheet: View {
                             }
                         }
                         .padding(.bottom, 16)
+                        }
                     }
                 }
 
@@ -276,12 +245,12 @@ struct RecipeIngredientSelectionSheet: View {
                                         .tint(.white)
                                 } else {
                                     Text("Add \(selectedIngredients.count) Ingredient\(selectedIngredients.count == 1 ? "" : "s") to List")
-                                        .fontWeight(.semibold)
+                                        .font(.outfit(16, weight: .semiBold))
                                 }
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 52)
-                            .background(selectedIngredients.isEmpty ? Color.gray : Color.blue)
+                            .background(selectedIngredients.isEmpty ? Color.gray : Color.black)
                             .foregroundStyle(.white)
                             .clipShape(RoundedRectangle(cornerRadius: 12))
                         }
@@ -299,7 +268,7 @@ struct RecipeIngredientSelectionSheet: View {
                     dismiss()
                 } label: {
                     Image(systemName: "chevron.left.circle.fill")
-                        .font(.system(size: 30))
+                        .font(.system(size: 40))
                         .foregroundStyle(.white)
                         .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                 }

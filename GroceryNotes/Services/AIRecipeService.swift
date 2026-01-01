@@ -183,7 +183,8 @@ actor AIRecipeService {
                 sourceName: result.sourceName,
                 servings: 4,  // Default - will be filled in when recipe is extracted
                 estimatedTimeMinutes: 30,  // Default
-                popularityScore: 4.5,  // Default
+                popularityScore: result.rating ?? 4.5,  // Use actual rating from search or default
+                reviewCount: result.reviewCount,  // Use actual review count from search
                 imageURL: result.imageURL,
                 ingredients: nil,  // Will be filled when tapped
                 steps: nil,  // Will be filled when tapped

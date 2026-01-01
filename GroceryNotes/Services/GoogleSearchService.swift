@@ -9,6 +9,7 @@ struct GoogleSearchResult: Codable {
     struct PageMap: Codable {
         var metatags: [MetaTag]?
         var cse_image: [CSEImage]?
+        var aggregaterating: [AggregateRating]?
 
         struct MetaTag: Codable {
             var ogImage: String?
@@ -22,6 +23,11 @@ struct GoogleSearchResult: Codable {
 
         struct CSEImage: Codable {
             var src: String?
+        }
+
+        struct AggregateRating: Codable {
+            var ratingvalue: String?
+            var reviewcount: String?
         }
     }
 }
@@ -79,6 +85,10 @@ actor GoogleSearchService {
             let imageURL = item.pagemap?.metatags?.first?.ogImage
                         ?? item.pagemap?.cse_image?.first?.src
 
+            // Extract rating and review count from structured data
+            let rating = item.pagemap?.aggregaterating?.first?.ratingvalue.flatMap { Double($0) }
+            let reviewCount = item.pagemap?.aggregaterating?.first?.reviewcount.flatMap { Int($0) }
+
             // Extract source name from URL
             let sourceName = extractSourceName(from: item.link)
 
@@ -87,7 +97,9 @@ actor GoogleSearchService {
                 sourceURL: item.link,
                 sourceName: sourceName,
                 description: item.snippet,
-                imageURL: imageURL
+                imageURL: imageURL,
+                rating: rating,
+                reviewCount: reviewCount
             )
         }
     }
@@ -112,6 +124,8 @@ struct RecipeSearchResult {
     var sourceName: String
     var description: String
     var imageURL: String?
+    var rating: Double?
+    var reviewCount: Int?
 }
 
 enum GoogleSearchError: LocalizedError {

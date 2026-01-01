@@ -61,6 +61,7 @@ struct MealRecipe: Codable, Identifiable {
     var sourceURL: String?
     var popularityScore: Double?
     var popularitySource: String?
+    var reviewCount: Int?
     var imagePrompt: String?
 
     init(
@@ -76,6 +77,7 @@ struct MealRecipe: Codable, Identifiable {
         sourceURL: String? = nil,
         popularityScore: Double? = nil,
         popularitySource: String? = nil,
+        reviewCount: Int? = nil,
         imagePrompt: String? = nil
     ) {
         self.id = id
@@ -90,6 +92,7 @@ struct MealRecipe: Codable, Identifiable {
         self.sourceURL = sourceURL
         self.popularityScore = popularityScore
         self.popularitySource = popularitySource
+        self.reviewCount = reviewCount
         self.imagePrompt = imagePrompt
     }
 }
@@ -179,6 +182,7 @@ struct PopularRecipesResponse: Codable {
         var servings: Int
         var estimatedTimeMinutes: Int
         var popularityScore: Double
+        var reviewCount: Int?
         var imageURL: String?
         var ingredients: [AIRecipeResponse.AIRecipeData.AIIngredientData]?
         var steps: [String]?
@@ -204,7 +208,8 @@ struct PopularRecipesResponse: Codable {
                 imageURL: recipe.imageURL,
                 sourceURL: recipe.sourceURL,
                 popularityScore: recipe.popularityScore,
-                popularitySource: recipe.sourceName
+                popularitySource: recipe.sourceName,
+                reviewCount: recipe.reviewCount
             )
         }
     }
