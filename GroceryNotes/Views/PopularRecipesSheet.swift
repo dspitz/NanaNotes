@@ -138,7 +138,7 @@ struct PopularRecipesSheet: View {
 
         // Immediately show recipe sheet with partial data
         onRecipeSelected(recipe)
-        dismiss()
+        // Don't dismiss - let user navigate back to recipe grid
 
         // Continue loading full recipe in background
         Task {
