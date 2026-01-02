@@ -2275,11 +2275,10 @@ struct MealDraftCardView: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
-    var body: some View {
-        Button {
-            onTap()
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
+    @State private var showingDeleteConfirmation = false
+
+    private var cardContent: some View {
+        VStack(alignment: .leading, spacing: 0) {
                 // Hand-painted illustration
                 if let imageURL = recipe.imageURL, let url = URL(string: imageURL) {
                     AsyncImage(url: url) { phase in
@@ -2375,15 +2374,25 @@ struct MealDraftCardView: View {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(Color.gray.opacity(0.1), lineWidth: 0.5)
             )
-        }
-        .buttonStyle(.plain)
-        .contextMenu {
-            Button(role: .destructive) {
-                onDelete()
-            } label: {
-                Label("Delete Recipe", systemImage: "trash")
+    }
+
+    var body: some View {
+        cardContent
+            .contentShape(Rectangle())
+            .onTapGesture {
+                onTap()
             }
-        }
+            .onLongPressGesture(minimumDuration: 0.5) {
+                showingDeleteConfirmation = true
+            }
+            .confirmationDialog("Delete Recipe", isPresented: $showingDeleteConfirmation) {
+                Button("Delete Recipe", role: .destructive) {
+                    onDelete()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("Are you sure you want to delete \"\(recipe.title)\"?")
+            }
     }
 }
 
