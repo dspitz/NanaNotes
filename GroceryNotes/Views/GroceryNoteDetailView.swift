@@ -2058,23 +2058,29 @@ struct FloatingAddItemBar: View {
             ZStack(alignment: .trailing) {
                 ZStack(alignment: .leading) {
                     // Placeholder - left aligned, vertically centered
-                    if newItemName.isEmpty {
-                        Text("Add item, recipe or meal idea")
-                            .foregroundStyle(Color.black.opacity(0.6))
-                            .padding(.leading, 24)
-                            .padding(.trailing, 56)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    Group {
+                        if newItemName.isEmpty {
+                            Text("Add item, recipe or meal idea")
+                                .foregroundStyle(Color.black.opacity(0.6))
+                                .padding(.leading, 24)
+                                .padding(.trailing, 56)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .transition(.opacity)
+                        }
                     }
+                    .animation(.easeOut(duration: 0.01), value: newItemName.isEmpty)
 
                     // Text Editor - left aligned, vertically centered
                     TextEditor(text: $newItemName)
                         .textFieldStyle(.plain)
                         .foregroundStyle(.primary)
                         .scrollContentBackground(.hidden)
+                        .scrollDisabled(true)
                         .background(Color.clear)
                         .padding(.leading, 20)
                         .padding(.trailing, 52)
-                        .padding(.vertical, 16)
+                        .padding(.top, 14)
+                        .padding(.bottom, 16)
                         .focused($isInputFocused)
                         .onChange(of: newItemName) { _, newValue in
                             // Detect Return key by checking for newline
@@ -2143,7 +2149,7 @@ struct FloatingAddItemBar: View {
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
-        .padding(.bottom, 0)
+        .padding(.bottom, isInputFocused ? 8 : 0)
         .animation(.spring(response: 0.3), value: newItemName.isEmpty)
     }
 }
