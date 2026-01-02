@@ -729,8 +729,16 @@ struct GroceryNoteDetailView: View {
                     if let itemId = firstItemId {
                         scrollToItemId = itemId
                     }
+                    // Close the popular recipes sheet so it doesn't reappear
+                    showingPopularRecipesSheet = false
                 }
             )
+        }
+        .onChange(of: showingRecipeSheet) { _, isShowing in
+            if !isShowing {
+                // Reload meal drafts when recipe sheet closes to pick up any new drafts
+                loadMealDrafts()
+            }
         }
         .sheet(isPresented: $showingPopularRecipesSheet) {
             PopularRecipesSheet(searchQuery: pendingMealIdea ?? "") { selectedRecipe in
