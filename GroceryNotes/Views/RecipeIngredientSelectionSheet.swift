@@ -98,19 +98,21 @@ struct RecipeIngredientSelectionSheet: View {
                                     .padding(.horizontal, 16)
 
                                 // Source info
-                                if let source = recipe.popularitySource {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "link")
-                                            .font(.outfit(11))
-                                        Text(source)
-                                            .font(.outfit(11, weight: .medium))
+                                if let source = recipe.popularitySource, let sourceURL = recipe.sourceURL, let url = URL(string: sourceURL) {
+                                    Link(destination: url) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "link")
+                                                .font(.outfit(11))
+                                            Text(source)
+                                                .font(.outfit(11, weight: .medium))
+                                        }
+                                        .foregroundStyle(.blue)
+                                        .frame(height: 40)
+                                        .padding(.horizontal, 24)
+                                        .background(Color(red: 0.969, green: 0.969, blue: 0.969))
+                                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        .padding(.top, 16)
                                     }
-                                    .foregroundStyle(.blue)
-                                    .frame(height: 40)
-                                    .padding(.horizontal, 24)
-                                    .background(Color(red: 0.969, green: 0.969, blue: 0.969))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .padding(.top, 16)
                                 }
                             }
                         }
