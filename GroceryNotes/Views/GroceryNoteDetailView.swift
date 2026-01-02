@@ -121,6 +121,92 @@ struct GroceryNoteDetailView: View {
         )
     }
 
+    private var mealIdeaPromptBar: some View {
+        VStack(spacing: 0) {
+            Button {
+                if let mealIdea = pendingMealIdea {
+                    searchPopularRecipes(mealIdea)
+                    showingMealIdeaPrompt = false
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "book.closed")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.black)
+                    Text("Search Popular Recipes")
+                        .font(.outfit(15, weight: .medium))
+                        .foregroundStyle(.black)
+                    Spacer()
+                }
+                .frame(height: 48)
+            }
+
+            Divider()
+                .padding(.horizontal, 0)
+
+            Button {
+                if let mealIdea = pendingMealIdea {
+                    Task {
+                        do {
+                            let categorizationService = CategorizationService(modelContext: modelContext)
+                            let normalized = await categorizationService.normalizeItemName(mealIdea)
+                            let (category, knowledge) = try await categorizationService.categorizeItem(mealIdea)
+
+                            await MainActor.run {
+                                let item = GroceryItem(
+                                    name: mealIdea,
+                                    normalizedName: normalized,
+                                    category: category,
+                                    storageAdvice: knowledge?.storageAdvice,
+                                    shelfLifeDaysMin: knowledge?.shelfLifeDaysMin,
+                                    shelfLifeDaysMax: knowledge?.shelfLifeDaysMax,
+                                    shelfLifeSource: knowledge?.source
+                                )
+                                item.note = note
+                                note.items.append(item)
+                                note.updatedAt = Date()
+                                try? modelContext.save()
+                                newItemName = ""
+                            }
+                        } catch {
+                            await MainActor.run {
+                                let item = GroceryItem(
+                                    name: mealIdea,
+                                    normalizedName: mealIdea.lowercased(),
+                                    category: .other
+                                )
+                                item.note = note
+                                note.items.append(item)
+                                note.updatedAt = Date()
+                                try? modelContext.save()
+                                newItemName = ""
+                            }
+                        }
+                    }
+                }
+                showingMealIdeaPrompt = false
+                pendingMealIdea = nil
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "list.bullet")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.black)
+                    Text("Add to List as Item")
+                        .font(.outfit(15, weight: .medium))
+                        .foregroundStyle(.black)
+                    Spacer()
+                }
+                .frame(height: 48)
+            }
+        }
+        .padding(16)
+        .background(Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: Color.black.opacity(0.08), radius: 16, x: 0, y: 4)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
+    }
+
     @ViewBuilder
     private var loadingOverlay: some View {
         if isLoadingRecipe {
@@ -212,7 +298,7 @@ struct GroceryNoteDetailView: View {
                                     Button(role: .destructive) {
                                         deleteItem(item)
                                     } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        Image(systemName: "trash")
                                     }
                                 }
                             .contextMenu {
@@ -298,7 +384,7 @@ struct GroceryNoteDetailView: View {
                             Button(role: .destructive) {
                                 deleteItem(item)
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Image(systemName: "trash")
                             }
                         }
                         .contextMenu {
@@ -439,7 +525,19 @@ struct GroceryNoteDetailView: View {
                 }
 
                 gradientScrim
-                floatingInputBar
+
+                VStack(spacing: 0) {
+                    Spacer()
+
+                    if showingMealIdeaPrompt {
+                        mealIdeaPromptBar
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+
+                    floatingInputBar
+                }
+                .animation(.spring(response: 0.3), value: showingMealIdeaPrompt)
+
                 loadingOverlay
             }
             .blur(radius: isExpanding ? 8 : 0)
@@ -670,73 +768,6 @@ struct GroceryNoteDetailView: View {
                 Task {
                     await cleanupRecording()
                 }
-            }
-        }
-        .confirmationDialog("What would you like to do?", isPresented: $showingMealIdeaPrompt, titleVisibility: .visible) {
-            Button("Generate Recipe with AI") {
-                if let mealIdea = pendingMealIdea {
-                    handleMealIdea(mealIdea)
-                }
-                pendingMealIdea = nil
-            }
-
-            Button("Search Popular Recipes") {
-                if let mealIdea = pendingMealIdea {
-                    searchPopularRecipes(mealIdea)
-                }
-            }
-
-            Button("Add to List as Item") {
-                if let mealIdea = pendingMealIdea {
-                    // Add as regular grocery item
-                    Task {
-                        do {
-                            let categorizationService = CategorizationService(modelContext: modelContext)
-                            let normalized = await categorizationService.normalizeItemName(mealIdea)
-                            let (category, knowledge) = try await categorizationService.categorizeItem(mealIdea)
-
-                            await MainActor.run {
-                                let item = GroceryItem(
-                                    name: mealIdea,
-                                    normalizedName: normalized,
-                                    category: category,
-                                    storageAdvice: knowledge?.storageAdvice,
-                                    shelfLifeDaysMin: knowledge?.shelfLifeDaysMin,
-                                    shelfLifeDaysMax: knowledge?.shelfLifeDaysMax,
-                                    shelfLifeSource: knowledge?.source
-                                )
-                                item.note = note
-                                note.items.append(item)
-                                note.updatedAt = Date()
-                                try? modelContext.save()
-                                newItemName = ""
-                            }
-                        } catch {
-                            await MainActor.run {
-                                let item = GroceryItem(
-                                    name: mealIdea,
-                                    normalizedName: mealIdea.lowercased(),
-                                    category: .other
-                                )
-                                item.note = note
-                                note.items.append(item)
-                                note.updatedAt = Date()
-                                try? modelContext.save()
-                                newItemName = ""
-                            }
-                        }
-                    }
-                }
-                pendingMealIdea = nil
-            }
-
-            Button("Cancel", role: .cancel) {
-                pendingMealIdea = nil
-                newItemName = ""
-            }
-        } message: {
-            if let mealIdea = pendingMealIdea {
-                Text("'\(mealIdea)' looks like a meal idea.")
             }
         }
         .onAppear {
@@ -2076,6 +2107,9 @@ struct FloatingAddItemBar: View {
                         .foregroundStyle(.primary)
                         .scrollContentBackground(.hidden)
                         .scrollDisabled(true)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.asciiCapable)
                         .background(Color.clear)
                         .padding(.leading, 20)
                         .padding(.trailing, 52)
