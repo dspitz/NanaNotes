@@ -729,20 +729,17 @@ struct GroceryNoteDetailView: View {
                     if let itemId = firstItemId {
                         scrollToItemId = itemId
                     }
-                    // Close the popular recipes sheet so it doesn't reappear
-                    showingPopularRecipesSheet = false
                 }
             )
         }
-        .onChange(of: showingRecipeSheet) { _, isShowing in
-            if !isShowing {
-                // Reload meal drafts when recipe sheet closes to pick up any new drafts
+        .onChange(of: viewMode) { _, newMode in
+            if newMode == .meals {
+                // Reload meal drafts when switching to meals view to show new recipes
                 loadMealDrafts()
             }
         }
         .sheet(isPresented: $showingPopularRecipesSheet) {
             PopularRecipesSheet(searchQuery: pendingMealIdea ?? "") { selectedRecipe in
-                // Keep pendingMealIdea so search results are preserved when navigating back
                 currentRecipe = selectedRecipe
 
                 // If recipe has no ingredients, it's partial data - show loading state
@@ -750,7 +747,12 @@ struct GroceryNoteDetailView: View {
                     isLoadingRecipe = true
                 } else {
                     isLoadingRecipe = false
+                    // Recipe is fully loaded, reload meal drafts to show it in meals tab
+                    loadMealDrafts()
                 }
+
+                // Close the search results sheet before opening recipe sheet
+                showingPopularRecipesSheet = false
 
                 showingRecipeSheet = true
                 viewMode = .meals
