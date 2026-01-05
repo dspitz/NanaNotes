@@ -60,7 +60,7 @@ class FirestoreSyncService {
 
     // MARK: - Item Management
 
-    func addItem(listId: String, name: String, emoji: String, category: String, quantity: String?, isRecurring: Bool) async throws -> String {
+    func addItem(listId: String, name: String, emoji: String, category: String, quantity: String?, isRecurring: Bool, createdByUserId: String? = nil, createdByName: String? = nil) async throws -> String {
         let itemData: [String: Any] = [
             "name": name,
             "emoji": emoji,
@@ -69,7 +69,9 @@ class FirestoreSyncService {
             "isChecked": false,
             "isRecurring": isRecurring,
             "createdAt": Timestamp(date: Date()),
-            "updatedAt": Timestamp(date: Date())
+            "updatedAt": Timestamp(date: Date()),
+            "createdByUserId": createdByUserId as Any,
+            "createdByName": createdByName as Any
         ]
 
         let docRef = try await db.collection("lists").document(listId).collection("items").addDocument(data: itemData)
@@ -221,6 +223,8 @@ struct FirestoreItem: Codable, Identifiable {
     var isRecurring: Bool
     var createdAt: Timestamp
     var updatedAt: Timestamp
+    var createdByUserId: String?
+    var createdByName: String?
 }
 
 enum SyncError: LocalizedError {

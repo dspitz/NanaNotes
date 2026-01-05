@@ -1172,6 +1172,12 @@ struct GroceryNoteDetailView: View {
                     let normalized = await categorizationService.normalizeItemName(parsedItem.name)
                     let (category, knowledge) = try await categorizationService.categorizeItem(parsedItem.name)
 
+                    // Capture current user info for author tracking
+                    let currentUserId = FirebaseAuthService.shared.currentUser?.uid
+                    let currentUserName = FirebaseAuthService.shared.currentUser?.displayName
+                                       ?? FirebaseAuthService.shared.currentUser?.email
+                                       ?? "Unknown"
+
                     // Create the grocery item immediately (FAST!)
                     let createdItem = await MainActor.run { () -> GroceryItem in
                         let item = GroceryItem(
@@ -1182,7 +1188,9 @@ struct GroceryNoteDetailView: View {
                             storageAdvice: knowledge?.storageAdvice,
                             shelfLifeDaysMin: knowledge?.shelfLifeDaysMin,
                             shelfLifeDaysMax: knowledge?.shelfLifeDaysMax,
-                            shelfLifeSource: knowledge?.source
+                            shelfLifeSource: knowledge?.source,
+                            createdByUserId: currentUserId,
+                            createdByName: currentUserName
                         )
                         item.note = note
                         note.items.append(item)

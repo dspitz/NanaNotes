@@ -21,6 +21,10 @@ final class GroceryItem {
     var purchasedAt: Date?
     var estimatedBestBy: Date?
 
+    // Author tracking for shared lists
+    var createdByUserId: String?
+    var createdByName: String?
+
     var note: GroceryNote?
 
     init(
@@ -39,7 +43,9 @@ final class GroceryItem {
         shelfLifeDaysMax: Int? = nil,
         shelfLifeSource: String? = nil,
         purchasedAt: Date? = nil,
-        estimatedBestBy: Date? = nil
+        estimatedBestBy: Date? = nil,
+        createdByUserId: String? = nil,
+        createdByName: String? = nil
     ) {
         self.id = id
         self.name = name
@@ -57,6 +63,8 @@ final class GroceryItem {
         self.shelfLifeSource = shelfLifeSource
         self.purchasedAt = purchasedAt
         self.estimatedBestBy = estimatedBestBy
+        self.createdByUserId = createdByUserId
+        self.createdByName = createdByName
     }
 
     var category: GroceryCategory {
