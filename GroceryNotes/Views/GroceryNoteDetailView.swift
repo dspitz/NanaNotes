@@ -1915,12 +1915,12 @@ struct FloatingExpandedItemView: View {
                         .padding(.bottom, isExpanding ? 12 : 0)
                     }
 
-                    // Author attribution - only show when expanded and author exists
-                    if isExpanding, let authorName = item.createdByName, let authorId = item.createdByUserId {
+                    // Author attribution - only show when expanded and someone else added it
+                    if isExpanding, let authorName = item.createdByName, let authorId = item.createdByUserId, !isCurrentUser(authorId) {
                         HStack(spacing: 4) {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 12))
-                            Text(isCurrentUser(authorId) ? "Added by you" : "Added by \(authorName)")
+                            Text("Added by \(authorName)")
                                 .font(.outfit(12))
                         }
                         .foregroundStyle(.secondary)
