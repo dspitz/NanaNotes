@@ -1914,6 +1914,17 @@ struct FloatingExpandedItemView: View {
                         .buttonStyle(.plain)
                         .padding(.bottom, isExpanding ? 12 : 0)
                     }
+
+                    // Author attribution - only show when expanded and author exists
+                    if isExpanding, let authorName = item.createdByName, let authorId = item.createdByUserId {
+                        HStack(spacing: 4) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 12))
+                            Text(isCurrentUser(authorId) ? "Added by you" : "Added by \(authorName)")
+                                .font(.outfit(12))
+                        }
+                        .foregroundStyle(.secondary)
+                    }
                 }
                 .padding(.top, isExpanding ? 24 : 0)
                 .opacity(isExpanding ? 1 : 0)
@@ -2092,6 +2103,10 @@ struct FloatingExpandedItemView: View {
             return existing.seasonality
         }
         return .allYear
+    }
+
+    private func isCurrentUser(_ userId: String) -> Bool {
+        FirebaseAuthService.shared.currentUser?.uid == userId
     }
 }
 
