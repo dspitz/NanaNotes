@@ -1,7 +1,9 @@
 import Foundation
+import SwiftData
 
 struct ItemEmojiMapper {
-    /// Maps normalized item names to specific emojis
+    /// Consolidated emoji map - single source of truth for all ingredient emojis
+    /// Merged from ItemEmojiMapper, GroceryItem, and MealIngredient extension
     private static let itemEmojiMap: [String: String] = [
         // Produce
         "apple": "🍎", "apples": "🍎",
@@ -31,6 +33,10 @@ struct ItemEmojiMapper {
         "garlic": "🧄",
         "onion": "🧅", "onions": "🧅",
 
+        // Herbs & Spices (from MealIngredient extension)
+        "ginger": "🫚",
+        "cilantro": "🌿", "parsley": "🌿", "basil": "🌿",
+
         // Meat & Protein
         "chicken": "🐔", "chicken breast": "🐔",
         "turkey": "🦃",
@@ -48,7 +54,7 @@ struct ItemEmojiMapper {
         "cheese": "🧀",
         "butter": "🧈",
         "yogurt": "🥛",
-        "cream": "🥛",
+        "cream": "🥛", "heavy cream": "🥛", "sour cream": "🥛",
         "ice cream": "🍦",
 
         // Bakery
@@ -70,9 +76,16 @@ struct ItemEmojiMapper {
         "beans": "🫘", "canned beans": "🫘",
         "peanut butter": "🥜",
         "honey": "🍯",
-        "oil": "🫗", "olive oil": "🫗",
+        "oil": "🫗", "olive oil": "🫗", "vegetable oil": "🫗",
         "salt": "🧂",
         "sugar": "🧂",
+        "flour": "🌾",
+
+        // Spices (from MealIngredient extension)
+        "spice": "🌶️", "cumin": "🌶️", "turmeric": "🌶️",
+        "coriander": "🌶️", "paprika": "🌶️", "chili": "🌶️",
+        "garam masala": "🌶️",
+        "curry": "🍛",
 
         // Beverages
         "coffee": "☕", "coffee beans": "☕",
@@ -98,9 +111,33 @@ struct ItemEmojiMapper {
         "trash bag": "🗑️", "trash bags": "🗑️",
     ]
 
-    /// Get emoji for an item, with fallback to category emoji
+    /// Get emoji for a GroceryItem, with fallback to category emoji
     static func emoji(for item: GroceryItem) -> String {
-        let normalized = item.normalizedName.lowercased()
+        emoji(for: item.normalizedName, category: item.category)
+    }
+
+    /// Get emoji for a MealIngredient, with fallback to category-based emoji
+    static func emoji(for ingredient: MealIngredient) -> String {
+        let categoryEnum: GroceryCategory?
+        if let categoryHint = ingredient.categoryHint?.lowercased() {
+            switch categoryHint {
+            case "produce": categoryEnum = .produce
+            case "meat": categoryEnum = .meat
+            case "dairy": categoryEnum = .dairy
+            case "pantry": categoryEnum = .pantry
+            case "bakery": categoryEnum = .bakery
+            default: categoryEnum = nil
+            }
+        } else {
+            categoryEnum = nil
+        }
+
+        return emoji(for: ingredient.name, category: categoryEnum)
+    }
+
+    /// Get emoji for a name string, with optional category fallback
+    static func emoji(for name: String, category: GroceryCategory? = nil) -> String {
+        let normalized = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
 
         // First try exact match
         if let emoji = itemEmojiMap[normalized] {
@@ -115,6 +152,11 @@ struct ItemEmojiMapper {
         }
 
         // Fallback to category emoji
-        return item.category.icon
+        if let category = category {
+            return category.icon
+        }
+
+        // Final fallback
+        return "🛒"
     }
 }

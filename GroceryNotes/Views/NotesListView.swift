@@ -5,11 +5,18 @@ struct NotesListView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \GroceryNote.createdAt, order: .reverse) private var notes: [GroceryNote]
 
+    @Binding var pendingShareCode: String?
+
     @State private var showingNewNoteOptions = false
     @State private var selectedNote: GroceryNote?
     @State private var showingJoinList = false
     @State private var showingProfile = false
     @State private var authService = FirebaseAuthService.shared
+    @State private var shareCodeToJoin: String?
+
+    init(pendingShareCode: Binding<String?> = .constant(nil)) {
+        self._pendingShareCode = pendingShareCode
+    }
 
     var body: some View {
         NavigationStack {
@@ -108,13 +115,21 @@ struct NotesListView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .navigationBarHidden(true)
                 .sheet(isPresented: $showingJoinList) {
-                    JoinListSheet { listId in
+                    JoinListSheet(initialCode: shareCodeToJoin) { listId in
                         // Successfully joined - listId is the Firebase list ID
-                        // You can navigate to it or show a success message
+                        print("✅ Successfully joined list: \(listId)")
+                        shareCodeToJoin = nil
                     }
                 }
                 .sheet(isPresented: $showingProfile) {
                     ProfileSheet()
+                }
+                .onChange(of: pendingShareCode) { _, newCode in
+                    if let code = newCode {
+                        shareCodeToJoin = code
+                        showingJoinList = true
+                        pendingShareCode = nil
+                    }
                 }
                 .overlay {
                     if notes.isEmpty {
@@ -206,19 +221,41 @@ struct NoteRowView: View {
 
     var body: some View {
         VStack(alignment: .center, spacing: 8) {
-            Text(note.title)
-                .font(.outfit(17, weight: .semiBold))
+            HStack {
+                Spacer()
+                Text(note.title)
+                    .font(.outfit(17, weight: .semiBold))
+                Spacer()
 
-            // Emoji stack from items (deduplicated)
-            if !note.items.isEmpty {
-                let uniqueEmojis = Array(Set(note.items.map { $0.emoji })).prefix(8)
-                HStack(spacing: 4) {
-                    ForEach(Array(uniqueEmojis), id: \.self) { emoji in
-                        Text(emoji)
-                            .font(.system(size: 20))
+                // Shared indicator badge
+                if note.firebaseListId != nil {
+                    HStack(spacing: 4) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 10))
+                        Text("Shared")
+                            .font(.outfit(10, weight: .medium))
                     }
-                    if uniqueEmojis.count > 8 {
-                        Text("+\(uniqueEmojis.count - 8)")
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color.blue)
+                    .clipShape(Capsule())
+                }
+            }
+
+            // Image/emoji stack from items (showing first 8 items)
+            if !note.items.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(Array(note.items.prefix(8)), id: \.id) { item in
+                        IngredientImageView(
+                            imageName: item.displayImageName,
+                            imageURL: item.customImageURL,
+                            emoji: item.emoji,
+                            size: 20
+                        )
+                    }
+                    if note.items.count > 8 {
+                        Text("+\(note.items.count - 8)")
                             .font(.outfit(12))
                             .foregroundStyle(.secondary)
                     }
@@ -373,7 +410,7 @@ struct ProfileSheet: View {
                 }
             }
             .sheet(isPresented: $showingJoinList) {
-                JoinListSheet { listId in
+                JoinListSheet(initialCode: nil) { listId in
                     print("✅ Successfully joined list: \(listId)")
                     // TODO: Navigate to the joined list or show success message
                     dismiss()
@@ -401,6 +438,6 @@ struct ProfileSheet: View {
 }
 
 #Preview {
-    NotesListView()
+    NotesListView(pendingShareCode: .constant(nil))
         .modelContainer(for: [GroceryNote.self, GroceryItem.self, RecurringItem.self])
 }

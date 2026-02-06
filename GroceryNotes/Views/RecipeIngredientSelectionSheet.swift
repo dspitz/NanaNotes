@@ -22,10 +22,8 @@ struct RecipeIngredientSelectionSheet: View {
         self.onIngredientsAdded = onIngredientsAdded
         // All ingredients selected by default, except staples (salt, pepper, water)
         if let recipe = recipe.wrappedValue {
-            let staplesKeywords = ["salt", "pepper", "black pepper", "sea salt", "kosher salt", "water"]
             let nonStaples = recipe.ingredients.filter { ingredient in
-                let lowercasedName = ingredient.name.lowercased()
-                return !staplesKeywords.contains(where: { lowercasedName.contains($0) })
+                !Self.isStapleIngredient(ingredient.name)
             }
             _selectedIngredients = State(initialValue: Set(nonStaples.map { $0.id }))
         } else {
@@ -286,12 +284,33 @@ struct RecipeIngredientSelectionSheet: View {
     }
 
     private func preselectIngredients(from recipe: MealRecipe) {
-        let staplesKeywords = ["salt", "pepper", "black pepper", "sea salt", "kosher salt", "water"]
         let nonStaples = recipe.ingredients.filter { ingredient in
-            let lowercasedName = ingredient.name.lowercased()
-            return !staplesKeywords.contains(where: { lowercasedName.contains($0) })
+            !Self.isStapleIngredient(ingredient.name)
         }
         selectedIngredients = Set(nonStaples.map { $0.id })
+    }
+
+    private static func isStapleIngredient(_ name: String) -> Bool {
+        let lowercasedName = name.lowercased()
+        let stapleWords = ["salt", "pepper", "water"]
+
+        // Split into words and check for exact word matches
+        let words = lowercasedName.split(separator: " ")
+        for word in words {
+            let cleanWord = word.trimmingCharacters(in: .punctuationCharacters)
+            if stapleWords.contains(cleanWord) {
+                return true
+            }
+        }
+
+        // Check for multi-word staples
+        if lowercasedName.contains("black pepper") ||
+           lowercasedName.contains("sea salt") ||
+           lowercasedName.contains("kosher salt") {
+            return true
+        }
+
+        return false
     }
 
     private func addSelectedIngredientsToList() {
@@ -382,8 +401,12 @@ struct IngredientCheckRow: View {
     var body: some View {
         HStack(spacing: 12) {
             HStack(spacing: 8) {
-                Text(ingredient.emoji)
-                    .font(.system(size: 34))
+                IngredientImageView(
+                    imageName: ingredient.displayImageName,
+                    imageURL: ingredient.customImageURL,
+                    emoji: ingredient.emoji,
+                    size: 34
+                )
 
                 Text(ingredient.name)
                     .font(.outfit(16))
@@ -438,82 +461,6 @@ struct IngredientCheckRow: View {
 
 extension MealIngredient {
     var emoji: String {
-        let itemEmojiMap: [String: String] = [
-            // Produce
-            "apple": "🍎", "apples": "🍎", "banana": "🍌", "bananas": "🍌",
-            "orange": "🍊", "oranges": "🍊", "lemon": "🍋", "lemons": "🍋", "lime": "🍋",
-            "strawberry": "🍓", "strawberries": "🍓", "grapes": "🍇", "grape": "🍇",
-            "watermelon": "🍉", "peach": "🍑", "peaches": "🍑", "cherry": "🍒", "cherries": "🍒",
-            "pear": "🍐", "pears": "🍐", "pineapple": "🍍", "mango": "🥭", "mangos": "🥭", "mangoes": "🥭",
-            "avocado": "🥑", "avocados": "🥑", "tomato": "🍅", "tomatoes": "🍅",
-            "potato": "🥔", "potatoes": "🥔", "carrot": "🥕", "carrots": "🥕", "corn": "🌽",
-            "pepper": "🌶️", "peppers": "🌶️", "bell pepper": "🫑", "bell peppers": "🫑",
-            "cucumber": "🥒", "cucumbers": "🥒", "broccoli": "🥦", "lettuce": "🥬",
-            "mushroom": "🍄", "mushrooms": "🍄", "garlic": "🧄", "onion": "🧅", "onions": "🧅",
-            "ginger": "🫚", "cilantro": "🌿", "parsley": "🌿", "basil": "🌿",
-
-            // Meat & Protein
-            "chicken": "🐔", "chicken breast": "🐔", "turkey": "🦃", "bacon": "🥓",
-            "steak": "🥩", "beef": "🥩", "ground beef": "🥩", "pork": "🐷", "pork chops": "🐷",
-            "ham": "🍖", "sausage": "🌭", "hot dog": "🌭", "hot dogs": "🌭",
-            "fish": "🐟", "salmon": "🐟", "tuna": "🐟", "shrimp": "🦐",
-            "egg": "🥚", "eggs": "🥚",
-
-            // Dairy
-            "milk": "🥛", "almond milk": "🥛", "oat milk": "🥛", "cheese": "🧀",
-            "butter": "🧈", "yogurt": "🥛", "cream": "🥛", "heavy cream": "🥛", "sour cream": "🥛",
-            "ice cream": "🍦",
-
-            // Bakery
-            "bread": "🍞", "bagel": "🥯", "bagels": "🥯", "croissant": "🥐", "croissants": "🥐",
-            "baguette": "🥖", "donut": "🍩", "donuts": "🍩", "cookie": "🍪", "cookies": "🍪",
-            "cake": "🎂", "pie": "🥧", "muffin": "🧁", "muffins": "🧁",
-
-            // Pantry
-            "rice": "🍚", "pasta": "🍝", "spaghetti": "🍝", "noodles": "🍝", "cereal": "🥣",
-            "soup": "🍲", "canned soup": "🥫", "beans": "🫘", "canned beans": "🫘",
-            "peanut butter": "🥜", "honey": "🍯", "oil": "🫗", "olive oil": "🫗", "vegetable oil": "🫗",
-            "salt": "🧂", "sugar": "🧂", "flour": "🌾", "spice": "🌶️", "cumin": "🌶️",
-            "turmeric": "🌶️", "coriander": "🌶️", "paprika": "🌶️", "chili": "🌶️",
-            "garam masala": "🌶️", "curry": "🍛",
-
-            // Beverages
-            "coffee": "☕", "coffee beans": "☕", "tea": "🍵",
-            "juice": "🧃", "orange juice": "🧃", "apple juice": "🧃",
-            "soda": "🥤", "pop": "🥤", "water": "💧", "bottled water": "💧",
-            "beer": "🍺", "wine": "🍷", "red wine": "🍷", "white wine": "🍷",
-
-            // Frozen
-            "frozen pizza": "🍕", "pizza": "🍕"
-        ]
-
-        let normalized = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
-
-        // Try exact match
-        if let emoji = itemEmojiMap[normalized] {
-            return emoji
-        }
-
-        // Try partial match
-        for (key, emoji) in itemEmojiMap {
-            if normalized.contains(key) {
-                return emoji
-            }
-        }
-
-        // Fallback based on category hint
-        if let category = categoryHint {
-            switch category.lowercased() {
-            case "produce": return "🥬"
-            case "meat": return "🥩"
-            case "dairy": return "🥛"
-            case "pantry": return "🥫"
-            case "bakery": return "🍞"
-            default: return "🛒"
-            }
-        }
-
-        // Final fallback
-        return "🛒"
+        ItemEmojiMapper.emoji(for: self)
     }
 }

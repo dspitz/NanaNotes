@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import FirebaseFirestore
 
 extension View {
     func placeholder<Content: View>(
@@ -46,6 +47,13 @@ struct GroceryNoteDetailView: View {
     // Sharing states
     @State private var showingShareSheet = false
     @State private var isCreatingFirebaseList = false
+    @State private var shareURL: URL?
+    @State private var isGeneratingShareLink = false
+    @State private var listMembers: [String: String] = [:] // userId: role
+    @State private var listOwnerId: String?
+    @State private var showingMemberManagement = false
+    @State private var showingNativeShareSheet = false
+    @State private var shareError: String?
 
     // Scroll to newly added item
     @State private var scrollToItemId: UUID?
@@ -510,149 +518,151 @@ struct GroceryNoteDetailView: View {
         }
     }
 
+    // MARK: - Body Helper Views
+
+    private var backgroundLayer: some View {
+        ZStack(alignment: .bottom) {
+            backgroundColor
+
+            VStack(spacing: 0) {
+                headerView
+
+                ScrollViewReader { proxy in
+                    scrollableContent(proxy: proxy)
+                }
+            }
+
+            gradientScrim
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                if showingMealIdeaPrompt {
+                    mealIdeaPromptBar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+
+                floatingInputBar
+            }
+            .animation(.spring(response: 0.3), value: showingMealIdeaPrompt)
+
+            loadingOverlay
+        }
+        .blur(radius: isExpanding ? 8 : 0)
+    }
+
+    @ViewBuilder
+    private var darkScrimOverlay: some View {
+        if expandedItemId != nil {
+            Color.black.opacity(isExpanding ? 0.16 : 0)
+                .ignoresSafeArea()
+                .allowsHitTesting(isExpanding)
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
+                        isExpanding = false
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        expandedItemId = nil
+                        editingItemId = nil
+                    }
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var expandedItemOverlay: some View {
+        if let expandedId = expandedItemId,
+           let expandedItem = note.items.first(where: { $0.id == expandedId }) {
+            expandedItemContent(for: expandedItem, id: expandedId)
+        }
+    }
+
+    private func expandedItemContent(for expandedItem: GroceryItem, id: UUID) -> some View {
+        let expandedWidth: CGFloat = UIScreen.main.bounds.width - 48
+        let startWidth = sourceFrame.width
+        let startHeight = sourceFrame.height
+        let estimatedHeight: CGFloat = expandedItem.isRecurring ? 320 : 260
+        let finalHeight: CGFloat = expandedHeight > 0 ? expandedHeight : estimatedHeight
+        let startCenterX = sourceFrame.midX
+        let startCenterY = sourceFrame.midY
+        let screenWidth = UIScreen.main.bounds.width
+        let screenHeight = UIScreen.main.bounds.height
+        let targetCenterX = screenWidth / 2
+        let targetCenterY = screenHeight / 2
+
+        return ZStack {
+            Color.clear
+        }
+        .overlay {
+            FloatingExpandedItemView(
+                item: expandedItem,
+                isEditing: editingItemId == id,
+                isExpanding: isExpanding,
+                namespace: expansionNamespace,
+                onEditTap: {
+                    editingItemId = id
+                },
+                onEditComplete: { newName in
+                    expandedItem.name = newName
+                    expandedItem.normalizedName = newName.lowercased().trimmingCharacters(in: .whitespaces)
+                    expandedItem.updatedAt = Date()
+                    editingItemId = nil
+                    try? modelContext.save()
+                },
+                onQuantityChange: { delta in
+                    updateQuantity(for: expandedItem, delta: delta)
+                },
+                onToggleRecurring: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        expandedItem.toggleRecurring()
+                    }
+                    updateRecurringItem(expandedItem)
+                    try? modelContext.save()
+                },
+                onSeasonalityChange: { seasonality in
+                    updateSeasonality(for: expandedItem, seasonality: seasonality)
+                },
+                onClose: {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
+                        isExpanding = false
+                    }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        expandedItemId = nil
+                        editingItemId = nil
+                    }
+                }
+            )
+            .background(
+                GeometryReader { expandedGeo in
+                    Color.clear
+                        .preference(key: ExpandedHeightPreferenceKey.self, value: expandedGeo.size.height)
+                }
+            )
+            .onPreferenceChange(ExpandedHeightPreferenceKey.self) { newHeight in
+                if expandedHeight != newHeight {
+                    expandedHeight = newHeight
+                }
+            }
+            .frame(
+                width: isExpanding ? expandedWidth : startWidth,
+                height: isExpanding ? finalHeight : startHeight
+            )
+            .position(
+                x: isExpanding ? targetCenterX : startCenterX,
+                y: isExpanding ? targetCenterY : startCenterY
+            )
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
+        .allowsHitTesting(true)
+        .zIndex(100)
+    }
+
     var body: some View {
         ZStack {
-            // Background layer
-            ZStack(alignment: .bottom) {
-                backgroundColor
-
-                VStack(spacing: 0) {
-                    headerView
-
-                    ScrollViewReader { proxy in
-                        scrollableContent(proxy: proxy)
-                    }
-                }
-
-                gradientScrim
-
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    if showingMealIdeaPrompt {
-                        mealIdeaPromptBar
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-
-                    floatingInputBar
-                }
-                .animation(.spring(response: 0.3), value: showingMealIdeaPrompt)
-
-                loadingOverlay
-            }
-            .blur(radius: isExpanding ? 8 : 0)
-
-            // Overlay: Dark scrim when expanded
-            if expandedItemId != nil {
-                Color.black.opacity(isExpanding ? 0.16 : 0)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(isExpanding)
-                    .onTapGesture {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
-                            isExpanding = false
-                        }
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            expandedItemId = nil
-                            editingItemId = nil
-                        }
-                    }
-            }
-
-            // Overlay: Floating expanded item
-            if let expandedId = expandedItemId,
-               let expandedItem = note.items.first(where: { $0.id == expandedId }) {
-                ZStack {
-                    Color.clear
-                }
-                .overlay {
-                    // Calculate dimensions
-                    let expandedWidth: CGFloat = UIScreen.main.bounds.width - 48
-                    let startWidth = sourceFrame.width
-                    let startHeight = sourceFrame.height
-
-                    // Calculate expanded height - use measured or estimated
-                    let estimatedHeight: CGFloat = expandedItem.isRecurring ? 320 : 260
-                    let finalHeight: CGFloat = expandedHeight > 0 ? expandedHeight : estimatedHeight
-
-                    // Start position: CENTER of source frame (position uses center point)
-                    let startCenterX = sourceFrame.midX
-                    let startCenterY = sourceFrame.midY
-
-                    // End position: centered on screen
-                    let screenWidth = UIScreen.main.bounds.width
-                    let screenHeight = UIScreen.main.bounds.height
-                    let targetCenterX = screenWidth / 2
-                    let targetCenterY = screenHeight / 2
-
-                    let _ = print("🎬 Overlay rendering - isExpanding: \(isExpanding)")
-                    let _ = print("   Start: center=(\(startCenterX), \(startCenterY)) size=\(startWidth)×\(startHeight)")
-                    let _ = print("   Target: center=(\(targetCenterX), \(targetCenterY)) size=\(expandedWidth)×\(finalHeight)")
-                    let _ = print("   Current frame: width=\(isExpanding ? expandedWidth : startWidth) height=\(isExpanding ? finalHeight : startHeight)")
-
-                    FloatingExpandedItemView(
-                        item: expandedItem,
-                        isEditing: editingItemId == expandedId,
-                        isExpanding: isExpanding,
-                        namespace: expansionNamespace,
-                        onEditTap: {
-                            editingItemId = expandedId
-                        },
-                        onEditComplete: { newName in
-                            expandedItem.name = newName
-                            expandedItem.normalizedName = newName.lowercased().trimmingCharacters(in: .whitespaces)
-                            expandedItem.updatedAt = Date()
-                            editingItemId = nil
-                            try? modelContext.save()
-                        },
-                        onQuantityChange: { delta in
-                            updateQuantity(for: expandedItem, delta: delta)
-                        },
-                        onToggleRecurring: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                expandedItem.toggleRecurring()
-                            }
-                            updateRecurringItem(expandedItem)
-                            try? modelContext.save()
-                        },
-                        onSeasonalityChange: { seasonality in
-                            updateSeasonality(for: expandedItem, seasonality: seasonality)
-                        },
-                        onClose: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.95)) {
-                                isExpanding = false
-                            }
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                expandedItemId = nil
-                                editingItemId = nil
-                            }
-                        }
-                    )
-                    .background(
-                        GeometryReader { expandedGeo in
-                            Color.clear
-                                .preference(key: ExpandedHeightPreferenceKey.self, value: expandedGeo.size.height)
-                        }
-                    )
-                    .onPreferenceChange(ExpandedHeightPreferenceKey.self) { newHeight in
-                        if expandedHeight != newHeight {
-                            expandedHeight = newHeight
-                            print("📐 Measured expanded height: \(newHeight)")
-                        }
-                    }
-                    .frame(
-                        width: isExpanding ? expandedWidth : startWidth,
-                        height: isExpanding ? finalHeight : startHeight
-                    )
-                    .position(
-                        x: isExpanding ? targetCenterX : startCenterX,
-                        y: isExpanding ? targetCenterY : startCenterY
-                    )
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .ignoresSafeArea()
-                .allowsHitTesting(true)
-                .zIndex(100)
-            }
+            backgroundLayer
+            darkScrimOverlay
+            expandedItemOverlay
         }
         .animation(.easeInOut(duration: 0.25), value: keyboardResponder.isKeyboardVisible)
         .navigationTitle(note.title)
@@ -669,38 +679,47 @@ struct GroceryNoteDetailView: View {
                 }
             }
 
-            ToolbarItem(placement: .primaryAction) {
-                Menu {
-                    Button {
-                        prepareForSharing()
-                    } label: {
-                        Label("Share List", systemImage: "person.2")
-                    }
+            // Custom title
+            ToolbarItem(placement: .principal) {
+                Text(note.title)
+                    .font(.outfit(17, weight: .semiBold))
+            }
 
-                    Divider()
-
-                    Button {
-                        if note.isCompleted {
-                            note.completedAt = nil
-                            note.updatedAt = Date()
-                        } else {
-                            note.markComplete()
+            // Member count and share button
+            ToolbarItem(placement: .topBarTrailing) {
+                HStack(spacing: 8) {
+                    // Show member count if list is shared (excluding current user)
+                    if note.firebaseListId != nil, !listMembers.isEmpty {
+                        Button {
+                            showingMemberManagement = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.2.fill")
+                                    .font(.system(size: 14))
+                                Text("\(listMembers.count)")
+                                    .font(.caption)
+                                    .fontWeight(.semibold)
+                            }
+                            .foregroundStyle(.blue)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.blue.opacity(0.1))
+                            .clipShape(Capsule())
                         }
-                        try? modelContext.save()
-                    } label: {
-                        Label(
-                            note.isCompleted ? "Mark Incomplete" : "Mark Complete",
-                            systemImage: note.isCompleted ? "xmark.circle" : "checkmark.circle"
-                        )
                     }
 
+                    // Share button
                     Button {
-                        showingEditSheet = true
+                        handleShareTap()
                     } label: {
-                        Label("Edit Note", systemImage: "pencil")
+                        if isGeneratingShareLink {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "square.and.arrow.up")
+                                .foregroundStyle(.blue)
+                        }
                     }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
+                    .disabled(isGeneratingShareLink)
                 }
             }
         }
@@ -738,23 +757,57 @@ struct GroceryNoteDetailView: View {
                 loadMealDrafts()
             }
         }
+        .sheet(isPresented: $showingMemberManagement) {
+            MemberManagementSheet(
+                members: listMembers,
+                ownerId: listOwnerId,
+                currentUserId: FirebaseAuthService.shared.currentUser?.uid,
+                onRemoveMember: removeMember
+            )
+        }
+        .sheet(isPresented: $showingNativeShareSheet) {
+            if let url = shareURL {
+                let shareCode = url.pathComponents.last ?? ""
+                let message = "Join my shopping list '\(note.title)' on Nana Notes! Use code: \(shareCode) or tap the link to join instantly."
+                ShareSheet(items: [url, message])
+            }
+        }
+        .alert("Share Error", isPresented: .constant(shareError != nil)) {
+            Button("OK") {
+                shareError = nil
+            }
+        } message: {
+            if let error = shareError {
+                Text(error)
+            }
+        }
+        .onAppear {
+            if note.firebaseListId != nil {
+                fetchListMembers()
+            }
+        }
+        .onChange(of: note.firebaseListId) { _, newListId in
+            if newListId != nil {
+                // Delay fetching to allow Firebase list to be fully created
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                    await MainActor.run {
+                        fetchListMembers()
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingPopularRecipesSheet) {
             PopularRecipesSheet(searchQuery: pendingMealIdea ?? "") { selectedRecipe in
+                // Recipe was saved from within the search sheet
                 currentRecipe = selectedRecipe
+                isLoadingRecipe = false
 
-                // If recipe has no ingredients, it's partial data - show loading state
-                if selectedRecipe.ingredients.isEmpty {
-                    isLoadingRecipe = true
-                } else {
-                    isLoadingRecipe = false
-                    // Recipe is fully loaded, reload meal drafts to show it in meals tab
-                    loadMealDrafts()
-                }
+                // Reload meal drafts to show the new recipe in meals tab
+                loadMealDrafts()
 
-                // Close the search results sheet before opening recipe sheet
+                // Close the search sheet and switch to meals tab
                 showingPopularRecipesSheet = false
-
-                showingRecipeSheet = true
                 viewMode = .meals
             }
         }
@@ -829,6 +882,156 @@ struct GroceryNoteDetailView: View {
                 }
             }
         }
+    }
+
+    private func handleShareTap() {
+        if shareURL != nil {
+            // URL already exists, show share sheet
+            showingNativeShareSheet = true
+        } else {
+            // Generate URL first, then show share sheet
+            generateShareLink()
+        }
+    }
+
+    private func generateShareLink() {
+        isGeneratingShareLink = true
+        shareError = nil
+
+        Task {
+            do {
+                // Ensure we have a Firebase list
+                var listId = note.firebaseListId
+
+                if listId == nil {
+                    // Create Firebase list first
+                    guard let userId = FirebaseAuthService.shared.currentUser?.uid else {
+                        print("❌ No authenticated user")
+                        await MainActor.run {
+                            isGeneratingShareLink = false
+                            shareError = "Please sign in to share lists"
+                        }
+                        return
+                    }
+
+                    print("🔵 Creating Firebase list for sharing: \(note.title)")
+                    listId = try await FirestoreSyncService.shared.createList(
+                        title: note.title,
+                        userId: userId
+                    )
+
+                    await MainActor.run {
+                        note.firebaseListId = listId
+                        note.updatedAt = Date()
+                        try? modelContext.save()
+                        print("✅ Firebase list created: \(listId ?? "unknown")")
+                    }
+                }
+
+                guard let finalListId = listId else {
+                    print("❌ No list ID available")
+                    await MainActor.run {
+                        isGeneratingShareLink = false
+                        shareError = "Failed to create shareable list"
+                    }
+                    return
+                }
+
+                // Generate share code
+                print("🔵 Generating share code...")
+                let shareCode = try await FirestoreSyncService.shared.generateShareCode(listId: finalListId)
+                print("✅ Share code generated: \(shareCode)")
+
+                // Create share URL safely
+                guard let url = URL(string: "nananotes://share/\(shareCode)") else {
+                    print("❌ Failed to create URL with code: \(shareCode)")
+                    await MainActor.run {
+                        isGeneratingShareLink = false
+                        shareError = "Failed to create share link"
+                    }
+                    return
+                }
+
+                await MainActor.run {
+                    shareURL = url
+                    isGeneratingShareLink = false
+                    print("✅ Share URL ready: \(url)")
+                }
+
+                // Small delay before presenting share sheet
+                try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
+
+                await MainActor.run {
+                    print("📤 Presenting share sheet...")
+                    showingNativeShareSheet = true
+                }
+            } catch {
+                print("❌ Failed to generate share link: \(error)")
+                await MainActor.run {
+                    isGeneratingShareLink = false
+                    shareError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func fetchListMembers() {
+        guard let listId = note.firebaseListId else { return }
+
+        Task {
+            do {
+                let db = Firestore.firestore()
+                let doc = try await db.collection("lists").document(listId).getDocument()
+
+                guard let data = doc.data(),
+                      let members = data["members"] as? [String: String],
+                      let ownerId = data["ownerId"] as? String else {
+                    return
+                }
+
+                await MainActor.run {
+                    listMembers = members
+                    listOwnerId = ownerId
+                }
+            } catch {
+                print("❌ Failed to fetch members: \(error)")
+            }
+        }
+    }
+
+    private func removeMember(_ userId: String) {
+        guard let listId = note.firebaseListId else { return }
+
+        Task {
+            do {
+                try await FirestoreSyncService.shared.removeMemberFromList(listId: listId, userId: userId)
+                // Refresh member list
+                fetchListMembers()
+            } catch {
+                print("❌ Failed to remove member: \(error)")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func memberAvatar(for userId: String) -> some View {
+        let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .red]
+        let colorIndex = abs(userId.hashValue) % colors.count
+        let initial = userId.prefix(1).uppercased()
+
+        Circle()
+            .fill(colors[colorIndex])
+            .frame(width: 28, height: 28)
+            .overlay {
+                Text(initial)
+                    .font(.caption2)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+            }
+            .overlay {
+                Circle()
+                    .strokeBorder(.white, lineWidth: 2)
+            }
     }
 
     // MARK: - Item Management Functions
@@ -1460,8 +1663,8 @@ struct GroceryNoteDetailView: View {
 
         Task {
             do {
-                let recipeService = RecipeURLService(apiKey: AppConfiguration.openAIAPIKey)
-                let aiResponse = try await recipeService.extractRecipeFromURL(urlString)
+                let recipeService = RecipeParsingService()
+                let aiResponse = try await recipeService.extractRecipe(from: urlString)
                 let recipe = aiResponse.toMealRecipe(sourceURL: urlString)
 
                 await MainActor.run {
@@ -1707,15 +1910,19 @@ struct ItemRowView: View {
                 onTap(itemFrame)
             } label: {
                 HStack(spacing: 8) {
-                    Text(item.emoji)
-                        .font(.system(size: 34))
-                        .scaleEffect((item.isChecked || !hasAppeared) ? 0.001 : 1.0)
-                        .opacity((item.isChecked || !hasAppeared) ? 0 : 1)
-                        .rotationEffect(.degrees((item.isChecked || !hasAppeared) ? -90 : 0))
-                        .offset(x: (item.isChecked || !hasAppeared) ? -32 : 0)
-                        .frame(width: (item.isChecked || !hasAppeared) ? 0 : nil)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: hasAppeared)
-                        .animation(.spring(response: 0.4, dampingFraction: 0.7), value: item.isChecked)
+                    IngredientImageView(
+                        imageName: item.displayImageName,
+                        imageURL: item.customImageURL,
+                        emoji: item.emoji,
+                        size: 34
+                    )
+                    .scaleEffect((item.isChecked || !hasAppeared) ? 0.001 : 1.0)
+                    .opacity((item.isChecked || !hasAppeared) ? 0 : 1)
+                    .rotationEffect(.degrees((item.isChecked || !hasAppeared) ? -90 : 0))
+                    .offset(x: (item.isChecked || !hasAppeared) ? -32 : 0)
+                    .frame(width: (item.isChecked || !hasAppeared) ? 0 : nil)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: hasAppeared)
+                    .animation(.spring(response: 0.4, dampingFraction: 0.7), value: item.isChecked)
                         .onAppear {
                             if isAppearing {
                                 // This is a newly added item - delay animation until after scroll completes
@@ -1880,8 +2087,12 @@ struct FloatingExpandedItemView: View {
             ZStack {
                 // Vertical stack when expanded - always in hierarchy
                 VStack(spacing: 8) {
-                    Text(item.emoji)
-                        .modifier(AnimatableFontModifier(size: isExpanding ? 68 : 34))
+                    IngredientImageView(
+                        imageName: item.displayImageName,
+                        imageURL: item.customImageURL,
+                        emoji: item.emoji,
+                        size: isExpanding ? 68 : 34
+                    )
 
                     if isEditing {
                         TextField("Item name", text: $editedName)
@@ -1933,8 +2144,12 @@ struct FloatingExpandedItemView: View {
 
                 // Horizontal stack when collapsed - always in hierarchy
                 HStack(spacing: 8) {
-                    Text(item.emoji)
-                        .font(.system(size: 34))
+                    IngredientImageView(
+                        imageName: item.displayImageName,
+                        imageURL: item.customImageURL,
+                        emoji: item.emoji,
+                        size: 34
+                    )
 
                     Text(item.name)
                         .font(.outfit(16))
@@ -2140,7 +2355,6 @@ struct FloatingAddItemBar: View {
                         .foregroundStyle(.primary)
                         .scrollContentBackground(.hidden)
                         .scrollDisabled(true)
-                        .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
                         .keyboardType(.asciiCapable)
                         .background(Color.clear)
@@ -2478,11 +2692,15 @@ struct InstacartCTAView: View {
             ZStack {
                 ForEach(Array(items.prefix(10).enumerated()), id: \.element.id) { index, item in
                     let position = getEmojiPosition(for: index)
-                    Text(item.emoji)
-                        .font(.system(size: 40))
-                        .rotationEffect(.degrees(position.rotation))
-                        .offset(x: position.x, y: position.y)
-                        .zIndex(Double(index))
+                    IngredientImageView(
+                        imageName: item.displayImageName,
+                        imageURL: item.customImageURL,
+                        emoji: item.emoji,
+                        size: 40
+                    )
+                    .rotationEffect(.degrees(position.rotation))
+                    .offset(x: position.x, y: position.y)
+                    .zIndex(Double(index))
                 }
             }
             .frame(height: 120)
@@ -2543,6 +2761,105 @@ struct InstacartCTAView: View {
     return NavigationStack {
         GroceryNoteDetailView(note: note)
             .modelContainer(container)
+    }
+}
+
+// MARK: - Member Management Sheet
+
+struct MemberManagementSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let members: [String: String]
+    let ownerId: String?
+    let currentUserId: String?
+    let onRemoveMember: (String) -> Void
+
+    private var isCurrentUserOwner: Bool {
+        guard let currentUserId, let ownerId else { return false }
+        return currentUserId == ownerId
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("People who can view and edit this list.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Members") {
+                    ForEach(Array(members.keys), id: \.self) { userId in
+                        HStack {
+                            // Avatar
+                            let colors: [Color] = [.blue, .green, .orange, .purple, .pink, .red]
+                            let colorIndex = abs(userId.hashValue) % colors.count
+                            let initial = userId.prefix(1).uppercased()
+
+                            Circle()
+                                .fill(colors[colorIndex])
+                                .frame(width: 40, height: 40)
+                                .overlay {
+                                    Text(initial)
+                                        .font(.headline)
+                                        .foregroundStyle(.white)
+                                }
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(userId == currentUserId ? "You" : userId)
+                                    .font(.body)
+
+                                if userId == ownerId {
+                                    Text("Owner")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                } else if let role = members[userId] {
+                                    Text(role.capitalized)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+
+                            Spacer()
+
+                            // Remove button (only show if current user is owner and member is not owner)
+                            if isCurrentUserOwner && userId != ownerId {
+                                Button(role: .destructive) {
+                                    onRemoveMember(userId)
+                                    dismiss()
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.red)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Shared With")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Share Sheet
+
+struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        return controller
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {
+        // No update needed
     }
 }
 

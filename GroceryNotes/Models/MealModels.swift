@@ -103,16 +103,35 @@ struct MealIngredient: Codable, Identifiable {
     var quantity: String
     var categoryHint: String?
 
+    // Image override properties (Phase 2)
+    var customImageName: String?
+    var customImageURL: String?
+
     init(
         id: UUID = UUID(),
         name: String,
         quantity: String,
-        categoryHint: String? = nil
+        categoryHint: String? = nil,
+        customImageName: String? = nil,
+        customImageURL: String? = nil
     ) {
         self.id = id
         self.name = name
         self.quantity = quantity
         self.categoryHint = categoryHint
+        self.customImageName = customImageName
+        self.customImageURL = customImageURL
+    }
+
+    var displayImageName: String? {
+        // Priority 1: Custom asset name (if explicitly set)
+        if let imageName = customImageName {
+            return imageName
+        }
+        // Priority 2: Try normalized name (e.g., "chicken" → "chicken" in assets)
+        // The view will check if the asset exists when rendering
+        let normalizedName = name.lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalizedName
     }
 }
 

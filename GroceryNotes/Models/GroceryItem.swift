@@ -25,6 +25,10 @@ final class GroceryItem {
     var createdByUserId: String?
     var createdByName: String?
 
+    // Image override properties (Phase 2)
+    var customImageName: String?
+    var customImageURL: String?
+
     var note: GroceryNote?
 
     init(
@@ -76,6 +80,19 @@ final class GroceryItem {
         }
     }
 
+    var displayImageName: String? {
+        // Priority 1: Custom asset name (if explicitly set)
+        if let imageName = customImageName {
+            return imageName
+        }
+        // Priority 2: Try normalized name (handles plurals smartly)
+        // Check exact match first, then try removing 's' for plurals
+        let normalized = normalizedName.lowercased()
+
+        // Try exact match first
+        return normalized
+    }
+
     func toggleCheck() {
         isChecked.toggle()
         checkedAt = isChecked ? Date() : nil
@@ -98,71 +115,8 @@ final class GroceryItem {
     }
 
     var emoji: String {
-        let itemEmojiMap: [String: String] = [
-            // Produce
-            "apple": "🍎", "apples": "🍎", "banana": "🍌", "bananas": "🍌",
-            "orange": "🍊", "oranges": "🍊", "lemon": "🍋", "lemons": "🍋", "lime": "🍋",
-            "strawberry": "🍓", "strawberries": "🍓", "grapes": "🍇", "grape": "🍇",
-            "watermelon": "🍉", "peach": "🍑", "peaches": "🍑", "cherry": "🍒", "cherries": "🍒",
-            "pear": "🍐", "pears": "🍐", "pineapple": "🍍", "mango": "🥭", "mangos": "🥭", "mangoes": "🥭",
-            "avocado": "🥑", "avocados": "🥑", "tomato": "🍅", "tomatoes": "🍅",
-            "potato": "🥔", "potatoes": "🥔", "carrot": "🥕", "carrots": "🥕", "corn": "🌽",
-            "pepper": "🌶️", "peppers": "🌶️", "bell pepper": "🫑", "bell peppers": "🫑",
-            "cucumber": "🥒", "cucumbers": "🥒", "broccoli": "🥦", "lettuce": "🥬",
-            "mushroom": "🍄", "mushrooms": "🍄", "garlic": "🧄", "onion": "🧅", "onions": "🧅",
-
-            // Meat & Protein
-            "chicken": "🐔", "chicken breast": "🐔", "turkey": "🦃", "bacon": "🥓",
-            "steak": "🥩", "beef": "🥩", "ground beef": "🥩", "pork": "🐷", "pork chops": "🐷",
-            "ham": "🍖", "sausage": "🌭", "hot dog": "🌭", "hot dogs": "🌭",
-            "fish": "🐟", "salmon": "🐟", "tuna": "🐟", "shrimp": "🦐",
-            "egg": "🥚", "eggs": "🥚",
-
-            // Dairy
-            "milk": "🥛", "almond milk": "🥛", "oat milk": "🥛", "cheese": "🧀",
-            "butter": "🧈", "yogurt": "🥛", "cream": "🥛", "ice cream": "🍦",
-
-            // Bakery
-            "bread": "🍞", "bagel": "🥯", "bagels": "🥯", "croissant": "🥐", "croissants": "🥐",
-            "baguette": "🥖", "donut": "🍩", "donuts": "🍩", "cookie": "🍪", "cookies": "🍪",
-            "cake": "🎂", "pie": "🥧", "muffin": "🧁", "muffins": "🧁",
-
-            // Pantry
-            "rice": "🍚", "pasta": "🍝", "spaghetti": "🍝", "noodles": "🍝", "cereal": "🥣",
-            "soup": "🍲", "canned soup": "🥫", "beans": "🫘", "canned beans": "🫘",
-            "peanut butter": "🥜", "honey": "🍯", "oil": "🫗", "olive oil": "🫗",
-            "salt": "🧂", "sugar": "🧂",
-
-            // Beverages
-            "coffee": "☕", "coffee beans": "☕", "tea": "🍵",
-            "juice": "🧃", "orange juice": "🧃", "apple juice": "🧃",
-            "soda": "🥤", "pop": "🥤", "water": "💧", "bottled water": "💧",
-            "beer": "🍺", "wine": "🍷", "red wine": "🍷", "white wine": "🍷",
-            "champagne": "🍾", "cocktail": "🍹",
-
-            // Frozen
-            "frozen pizza": "🍕", "pizza": "🍕",
-
-            // Household
-            "soap": "🧼", "detergent": "🧴", "paper towel": "🧻", "paper towels": "🧻",
-            "toilet paper": "🧻", "trash bag": "🗑️", "trash bags": "🗑️"
-        ]
-
-        let normalized = normalizedName.lowercased()
-
-        // Try exact match
-        if let emoji = itemEmojiMap[normalized] {
-            return emoji
-        }
-
-        // Try partial match
-        for (key, emoji) in itemEmojiMap {
-            if normalized.contains(key) {
-                return emoji
-            }
-        }
-
-        // Fallback to category emoji
-        return category.icon
+        // Use ItemEmojiMapper for centralized emoji lookup
+        let mapper = ItemEmojiMapper()
+        return ItemEmojiMapper.emoji(for: normalizedName, category: category)
     }
 }
