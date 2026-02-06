@@ -15,6 +15,17 @@ extension View {
     }
 }
 
+// MARK: - OpenAI Response Models
+private struct OpenAIClassificationResponse: Codable {
+    struct Choice: Codable {
+        struct Message: Codable {
+            var content: String
+        }
+        var message: Message
+    }
+    var choices: [Choice]
+}
+
 struct GroceryNoteDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -1575,24 +1586,31 @@ struct GroceryNoteDetailView: View {
             return
         }
 
-        // Check if it looks like a meal idea (not just a simple grocery item)
-        if isMealIdea(input) {
-            // Ask user what they want to do
-            pendingMealIdea = input
-            showingMealIdeaPrompt = true
-            return
-        }
-
-        // Otherwise, handle as regular item or batch
-        if currentTranscription.isEmpty {
-            addItem()
-        } else {
-            addItemsBatch()
+        // Check if it looks like a meal idea (now async)
+        Task {
+            if await isMealIdea(input) {
+                // Ask user what they want to do
+                await MainActor.run {
+                    pendingMealIdea = input
+                    showingMealIdeaPrompt = true
+                }
+            } else {
+                // Otherwise, handle as regular item or batch
+                await MainActor.run {
+                    if currentTranscription.isEmpty {
+                        addItem()
+                    } else {
+                        addItemsBatch()
+                    }
+                }
+            }
         }
     }
 
-    private func isMealIdea(_ text: String) -> Bool {
+    private func isMealIdea(_ text: String) async -> Bool {
         let lowercased = text.lowercased()
+
+        // FAST PATH: Obvious cases (no AI needed)
 
         // If it has bullet points, it's likely a voice transcription batch
         if text.contains("•") {
@@ -1602,24 +1620,6 @@ struct GroceryNoteDetailView: View {
         // If it contains "recipe", it's definitely a meal idea
         if lowercased.contains("recipe") {
             return true
-        }
-
-        // Check if it's a known grocery item first (check against our 500+ item database)
-        let categorizationService = CategorizationService(modelContext: modelContext)
-        let normalized = lowercased.trimmingCharacters(in: .whitespaces)
-
-        // Check if it's in our exact matches (instant check, no async needed)
-        // We can't call async here, but we can check common patterns
-        let commonGroceryItems = [
-            "dragon fruit", "star fruit", "passion fruit", "bell pepper", "sweet potato",
-            "green beans", "ground beef", "chicken breast", "ice cream", "orange juice",
-            "apple juice", "grape juice", "peanut butter", "almond butter", "cottage cheese",
-            "cream cheese", "sour cream", "brown rice", "white rice", "olive oil",
-            "coconut oil", "sea salt", "hot sauce", "bbq sauce", "potato chips"
-        ]
-
-        if commonGroceryItems.contains(normalized) {
-            return false
         }
 
         let words = text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
@@ -1634,7 +1634,13 @@ struct GroceryNoteDetailView: View {
             "bowl", "salad", "soup", "stew", "curry", "pasta", "rice", "stir fry",
             "grilled", "fried", "baked", "roasted", "sauteed", "steamed",
             "chicken parm", "pad thai", "fried rice", "tacos", "burrito", "sandwich",
-            "burger", "pizza", "casserole", "lasagna", "enchiladas"
+            "burger", "pizza", "casserole", "lasagna", "enchiladas",
+            // Desserts & baked goods
+            "tart", "pie", "cake", "brownie", "cookie", "muffin", "scone",
+            "pudding", "parfait", "cobbler", "crumble", "crisp", "galette",
+            // Additional dish types
+            "risotto", "goulash", "quiche", "torte", "cheesecake", "pancake",
+            "waffle", "frittata", "omelette", "scramble"
         ]
 
         for keyword in mealKeywords {
@@ -1643,13 +1649,82 @@ struct GroceryNoteDetailView: View {
             }
         }
 
-        // If it's just 1-2 words without meal keywords, assume it's a grocery item
-        if words.count <= 2 {
+        // Check if it's a known grocery item (instant check)
+        let normalized = lowercased.trimmingCharacters(in: .whitespaces)
+        let commonGroceryItems = [
+            "dragon fruit", "star fruit", "passion fruit", "bell pepper", "sweet potato",
+            "green beans", "ground beef", "chicken breast", "ice cream", "orange juice",
+            "apple juice", "grape juice", "peanut butter", "almond butter", "cottage cheese",
+            "cream cheese", "sour cream", "brown rice", "white rice", "olive oil",
+            "coconut oil", "sea salt", "hot sauce", "bbq sauce", "potato chips"
+        ]
+
+        if commonGroceryItems.contains(normalized) {
             return false
         }
 
-        // If it's 3+ words, likely a meal idea (e.g., "spicy chicken tacos")
+        // SMART PATH: AI classification for ambiguous 2-3 word inputs
+        if words.count <= 3 {
+            return await classifyWithAI(text)
+        }
+
+        // DEFAULT: 4+ words = likely recipe
         return true
+    }
+
+    private func classifyWithAI(_ text: String) async -> Bool {
+        // Fallback if OpenAI not configured
+        guard AppConfiguration.isOpenAIConfigured else {
+            // Conservative: require 3+ words for recipe
+            let words = text.components(separatedBy: .whitespaces).filter { !$0.isEmpty }
+            return words.count >= 3
+        }
+
+        do {
+            let systemPrompt = """
+            You are a classification assistant. Determine if the input is a RECIPE/DISH or a GROCERY ITEM.
+
+            RECIPE: Something to cook/prepare (apple tart, chicken curry, beef stew, strawberry galette)
+            ITEM: An ingredient to buy (chicken breast, ground beef, fresh apples, strawberries)
+
+            Respond with only: RECIPE or ITEM
+            """
+
+            let requestBody: [String: Any] = [
+                "model": "gpt-4o-mini",
+                "messages": [
+                    ["role": "system", "content": systemPrompt],
+                    ["role": "user", "content": text]
+                ],
+                "temperature": 0,
+                "max_tokens": 5
+            ]
+
+            var request = URLRequest(url: URL(string: "https://api.openai.com/v1/chat/completions")!)
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(AppConfiguration.openAIAPIKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: requestBody)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+                print("AI classification failed: invalid response")
+                return false
+            }
+
+            let openAIResponse = try JSONDecoder().decode(OpenAIClassificationResponse.self, from: data)
+            guard let content = openAIResponse.choices.first?.message.content else {
+                return false
+            }
+
+            return content.uppercased().contains("RECIPE")
+
+        } catch {
+            print("AI classification failed: \(error)")
+            // Fallback on error: conservative default
+            return false
+        }
     }
 
     private func handleRecipeURL(_ urlString: String) {
