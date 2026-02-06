@@ -51,6 +51,22 @@ struct ShareListSheet: View {
                         Text("Share this 6-digit code. It expires in 24 hours.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
+
+                        // Share Link button - more prominent
+                        ShareLink(
+                            item: URL(string: "nananotes://share/\(code)")!,
+                            subject: Text("Join my shopping list"),
+                            message: Text("Join my shopping list '\(note.title)' on Nana Notes! Use code: \(code) or tap the link to join instantly.")
+                        ) {
+                            HStack {
+                                Image(systemName: "square.and.arrow.up")
+                                Text("Share Link via Text/Message")
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 4)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.blue)
                     } else {
                         Button {
                             generateShareCode()

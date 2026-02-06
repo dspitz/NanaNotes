@@ -5,7 +5,8 @@ struct MealsView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \MealDraft.createdAt, order: .reverse) private var mealDrafts: [MealDraft]
 
-    @State private var selectedDraft: MealDraft?
+    @State private var selectedRecipe: MealRecipe?
+    @State private var showingRecipeDetail = false
     @State private var showingAddToNote = false
 
     var body: some View {
@@ -19,264 +20,83 @@ struct MealsView: View {
                     )
                     .padding(.top, 100)
                 } else {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 16),
-                        GridItem(.flexible(), spacing: 16)
-                    ], spacing: 16) {
-                        ForEach(mealDrafts) { draft in
-                            if let recipe = draft.selectedRecipe {
-                                MealCardView(recipe: recipe) {
-                                    selectedDraft = draft
-                                    showingAddToNote = true
+                    VStack(alignment: .leading, spacing: 12) {
+                        LazyVGrid(columns: [
+                            GridItem(.flexible(), spacing: 16),
+                            GridItem(.flexible(), spacing: 16)
+                        ], spacing: 16) {
+                            ForEach(mealDrafts) { draft in
+                                if let recipe = draft.selectedRecipe {
+                                    RecipeCard(
+                                        recipe: recipe,
+                                        onTap: {
+                                            selectedRecipe = recipe
+                                            showingRecipeDetail = true
+                                        },
+                                        onDelete: {
+                                            deleteMealDraft(draft)
+                                        }
+                                    )
                                 }
                             }
                         }
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, 24)
                     }
-                    .padding()
                 }
             }
+            .background(Color(red: 0.882, green: 0.882, blue: 0.882))
             .navigationTitle("Recipes")
-            .sheet(isPresented: $showingAddToNote) {
-                if let draft = selectedDraft, let recipe = draft.selectedRecipe {
-                    AddIngredientsSheet(recipe: recipe)
+            .sheet(isPresented: $showingRecipeDetail) {
+                if let recipe = selectedRecipe {
+                    RecipeDetailSheetForRootTab(recipe: recipe)
                 }
             }
         }
     }
 
+    private func deleteMealDraft(_ draft: MealDraft) {
+        modelContext.delete(draft)
+        try? modelContext.save()
+    }
 }
 
-// Beautiful recipe card for 2-column grid with hand-painted illustration
-struct MealCardView: View {
+/// Recipe detail view for root recipes tab
+/// Shows recipe using RecipeIngredientSelectionSheet with "Add to Note" functionality
+struct RecipeDetailSheetForRootTab: View {
+    @Environment(\.dismiss) private var dismiss
     let recipe: MealRecipe
-    let onTap: () -> Void
+
+    @State private var fullRecipe: MealRecipe?
+    @State private var isLoadingRecipe = false
+    @State private var isLoadingImage = false
+    @State private var showingAddToNote = false
 
     var body: some View {
-        Button {
-            onTap()
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                // Hand-painted illustration
-                if let imageURL = recipe.imageURL, let url = URL(string: imageURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .clipped()
-                        case .failure(_):
-                            Rectangle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .font(.largeTitle)
-                                        .foregroundStyle(.tertiary)
-                                }
-                        case .empty:
-                            Rectangle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .overlay {
-                                    ProgressView()
-                                }
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                } else {
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                        .overlay {
-                            Image(systemName: "fork.knife")
-                                .font(.largeTitle)
-                                .foregroundStyle(.tertiary)
-                        }
-                }
-
-                // Recipe info
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(recipe.title)
-                        .font(.subheadline)
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 10) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "person.2")
-                                .font(.caption2)
-                            Text("\(recipe.servings)")
-                                .font(.caption)
-                        }
-
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock")
-                                .font(.caption2)
-                            Text("\(recipe.estimatedTimeMinutes)m")
-                                .font(.caption)
-                        }
-                    }
-                    .foregroundStyle(.secondary)
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.gray.opacity(0.1), lineWidth: 0.5)
+        ZStack {
+            RecipeIngredientSelectionSheet(
+                recipe: $fullRecipe,
+                note: nil,
+                isLoadingRecipe: $isLoadingRecipe,
+                isLoadingImage: $isLoadingImage,
+                onSaveRecipe: { _ in
+                    showingAddToNote = true
+                },
+                useStandardNavigation: false
             )
+            .onAppear {
+                fullRecipe = recipe
+            }
         }
-        .buttonStyle(.plain)
+        .sheet(isPresented: $showingAddToNote) {
+            if let recipe = fullRecipe {
+                AddIngredientsSheet(recipe: recipe)
+            }
+        }
     }
 }
 
-struct RecipeCardView: View {
-    let recipe: MealRecipe
-    let onAddToNote: () -> Void
-
-    @State private var showingSteps = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(recipe.title)
-                    .font(.title2)
-                    .fontWeight(.bold)
-
-                Text(recipe.description)
-                    .foregroundStyle(.secondary)
-
-                HStack {
-                    Label("\(recipe.servings) servings", systemImage: "person.2")
-                    Spacer()
-                    Label("\(recipe.estimatedTimeMinutes) min", systemImage: "clock")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            }
-
-            Divider()
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Ingredients")
-                    .font(.headline)
-
-                ForEach(recipe.ingredients) { ingredient in
-                    HStack(alignment: .top) {
-                        Text("•")
-                        Text("\(ingredient.quantity) \(ingredient.name)")
-                    }
-                    .font(.subheadline)
-                }
-            }
-
-            Button {
-                showingSteps.toggle()
-            } label: {
-                HStack {
-                    Text("Instructions")
-                        .font(.headline)
-                    Spacer()
-                    Image(systemName: showingSteps ? "chevron.up" : "chevron.down")
-                }
-            }
-            .buttonStyle(.plain)
-
-            if showingSteps {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(Array(recipe.steps.enumerated()), id: \.offset) { index, step in
-                        HStack(alignment: .top, spacing: 8) {
-                            Text("\(index + 1).")
-                                .fontWeight(.semibold)
-                            Text(step)
-                        }
-                        .font(.subheadline)
-                    }
-                }
-            }
-
-            Button {
-                onAddToNote()
-            } label: {
-                Label("Add Ingredients to Grocery Note", systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal)
-    }
-}
-
-struct AlternativeRecipeCard: View {
-    let recipe: MealRecipe
-    let onSelect: () -> Void
-
-    var body: some View {
-        Button {
-            onSelect()
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(recipe.title)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-
-                    Text(recipe.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-
-                    HStack {
-                        Label("\(recipe.servings) servings", systemImage: "person.2")
-                        Label("\(recipe.estimatedTimeMinutes) min", systemImage: "clock")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "arrow.right.circle")
-                    .foregroundStyle(.blue)
-            }
-            .padding()
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-        }
-        .buttonStyle(.plain)
-        .padding(.horizontal)
-    }
-}
+// MARK: - AddIngredientsSheet
 
 struct AddIngredientsSheet: View {
     @Environment(\.dismiss) private var dismiss

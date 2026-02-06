@@ -11,6 +11,8 @@ struct PopularRecipesSheet: View {
     @State private var recipes: [MealRecipe] = []
     @State private var isLoading = true
     @State private var errorMessage: String?
+    @State private var selectedRecipe: MealRecipe?
+    @State private var showingRecipeDetail = false
 
     var body: some View {
         NavigationStack {
@@ -67,12 +69,10 @@ struct PopularRecipesSheet: View {
                                 GridItem(.flexible(), spacing: 16)
                             ], spacing: 16) {
                                 ForEach(recipes) { recipe in
-                                    PopularRecipeCard(
-                                        recipe: recipe,
-                                        onTap: {
-                                            handleRecipeSelection(recipe)
-                                        }
-                                    )
+                                    RecipeCard(recipe: recipe) {
+                                        selectedRecipe = recipe
+                                        showingRecipeDetail = true
+                                    }
                                 }
                             }
                             .padding(.horizontal, 24)
@@ -95,6 +95,26 @@ struct PopularRecipesSheet: View {
         .onAppear {
             print("🔍 PopularRecipesSheet appeared with searchQuery: '\(searchQuery)'")
             loadPopularRecipes()
+        }
+        .sheet(isPresented: $showingRecipeDetail) {
+            if let recipe = selectedRecipe {
+                RecipeDetailWrapper(
+                    recipe: recipe,
+                    onSaveRecipe: { fullRecipe in
+                        // Save to MealDraft
+                        let draft = MealDraft(title: fullRecipe.title, selectedRecipe: fullRecipe)
+                        modelContext.insert(draft)
+                        try? modelContext.save()
+
+                        // Notify parent
+                        onRecipeSelected(fullRecipe)
+
+                        // Dismiss the entire sheet stack
+                        showingRecipeDetail = false
+                        dismiss()
+                    }
+                )
+            }
         }
     }
 
@@ -130,141 +150,71 @@ struct PopularRecipesSheet: View {
         }
     }
 
-    private func handleRecipeSelection(_ recipe: MealRecipe) {
+}
+
+// MARK: - RecipeDetailWrapper
+
+/// Wrapper view that manages state and uses RecipeIngredientSelectionSheet
+/// for consistent recipe detail layout across the app
+struct RecipeDetailWrapper: View {
+    let recipe: MealRecipe
+    let onSaveRecipe: (MealRecipe) -> Void
+
+    @State private var fullRecipe: MealRecipe?
+    @State private var isLoadingRecipe = true
+    @State private var isLoadingImage = false
+
+    var body: some View {
+        RecipeIngredientSelectionSheet(
+            recipe: $fullRecipe,
+            note: nil,
+            isLoadingRecipe: $isLoadingRecipe,
+            isLoadingImage: $isLoadingImage,
+            onSaveRecipe: onSaveRecipe,
+            useStandardNavigation: false
+        )
+        .onAppear {
+            loadFullRecipe()
+        }
+    }
+
+    private func loadFullRecipe() {
         guard let sourceURL = recipe.sourceURL else {
-            errorMessage = "Recipe URL not available"
+            isLoadingRecipe = false
+            fullRecipe = recipe
             return
         }
 
-        // Immediately show recipe sheet with partial data
-        onRecipeSelected(recipe)
-        // Don't dismiss - let user navigate back to recipe grid
-
-        // Continue loading full recipe in background
         Task {
             do {
-                // Extract full recipe from URL using RecipeURLService
-                let recipeService = RecipeURLService(apiKey: AppConfiguration.openAIAPIKey)
-                let aiResponse = try await recipeService.extractRecipeFromURL(sourceURL)
-                var fullRecipe = aiResponse.toMealRecipe(sourceURL: sourceURL)
+                let recipeService = RecipeParsingService()
+                let aiResponse = try await recipeService.extractRecipe(from: sourceURL)
+                var loadedRecipe = aiResponse.toMealRecipe(sourceURL: sourceURL)
 
                 // Preserve metadata from search results
-                fullRecipe.popularityScore = recipe.popularityScore
-                fullRecipe.popularitySource = recipe.popularitySource
-                if fullRecipe.imageURL == nil {
-                    fullRecipe.imageURL = recipe.imageURL  // Use search result image if extraction didn't find one
+                loadedRecipe.title = recipe.title
+                loadedRecipe.popularityScore = recipe.popularityScore
+                loadedRecipe.popularitySource = recipe.popularitySource
+                if loadedRecipe.imageURL == nil {
+                    loadedRecipe.imageURL = recipe.imageURL
                 }
 
                 await MainActor.run {
-                    // Save to MealDraft
-                    let draft = MealDraft(title: fullRecipe.title, selectedRecipe: fullRecipe)
-                    modelContext.insert(draft)
-                    try? modelContext.save()
-
-                    // Update with full recipe data
-                    onRecipeSelected(fullRecipe)
+                    fullRecipe = loadedRecipe
+                    isLoadingRecipe = false
                 }
             } catch {
-                // Silently fail - user already has partial recipe shown
-                print("⚠️ Failed to load full recipe: \(error.localizedDescription)")
+                await MainActor.run {
+                    isLoadingRecipe = false
+                    fullRecipe = recipe
+                    print("⚠️ Failed to load full recipe: \(error.localizedDescription)")
+                }
             }
         }
     }
 }
 
 // MARK: - PopularRecipeCard
-
-struct PopularRecipeCard: View {
-    let recipe: MealRecipe
-    let onTap: () -> Void
-
-    var body: some View {
-        Button {
-            onTap()
-        } label: {
-            VStack(alignment: .leading, spacing: 0) {
-                // Recipe image
-                if let imageURL = recipe.imageURL, let url = URL(string: imageURL) {
-                    AsyncImage(url: url) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .clipped()
-                        case .failure(_):
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.2))
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .overlay {
-                                    Image(systemName: "photo")
-                                        .font(.largeTitle)
-                                        .foregroundStyle(.tertiary)
-                                }
-                        case .empty:
-                            Rectangle()
-                                .fill(Color.gray.opacity(0.1))
-                                .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                                .overlay {
-                                    ProgressView()
-                                }
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                } else {
-                    // No image URL - show placeholder
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [Color.gray.opacity(0.1), Color.gray.opacity(0.2)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: UIScreen.main.bounds.width / 2 - 32, height: UIScreen.main.bounds.width / 2 - 32)
-                        .overlay {
-                            Image(systemName: "fork.knife")
-                                .font(.largeTitle)
-                                .foregroundStyle(.tertiary)
-                        }
-                }
-
-                // Recipe info
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(recipe.title)
-                        .font(.outfit(15, weight: .semiBold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .frame(height: 40, alignment: .topLeading)
-
-                    // Recipe source
-                    if let source = recipe.popularitySource {
-                        HStack(spacing: 4) {
-                            Image(systemName: "link")
-                                .font(.system(size: 11))
-                            Text(source)
-                                .font(.outfit(12, weight: .medium))
-                        }
-                        .foregroundStyle(.blue)
-                    }
-                }
-                .padding(14)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .background(Color(.systemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 16))
-            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(Color.gray.opacity(0.1), lineWidth: 0.5)
-            )
-        }
-        .buttonStyle(.plain)
-    }
-}
 
 // MARK: - PopularRecipeCardSkeleton
 

@@ -2,13 +2,18 @@ import SwiftUI
 
 struct JoinListSheet: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var shareCode = ""
+    @State private var shareCode: String
     @State private var isJoining = false
     @State private var errorMessage: String?
 
     let syncService = FirestoreSyncService.shared
     let authService = FirebaseAuthService.shared
     let onSuccess: (String) -> Void
+
+    init(initialCode: String? = nil, onSuccess: @escaping (String) -> Void) {
+        self._shareCode = State(initialValue: initialCode ?? "")
+        self.onSuccess = onSuccess
+    }
 
     var body: some View {
         NavigationStack {

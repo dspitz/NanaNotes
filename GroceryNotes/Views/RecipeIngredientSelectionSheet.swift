@@ -6,20 +6,32 @@ struct RecipeIngredientSelectionSheet: View {
     @Environment(\.modelContext) private var modelContext
 
     @Binding var recipe: MealRecipe?
-    let note: GroceryNote
+    let note: GroceryNote?
     @Binding var isLoadingRecipe: Bool
     @Binding var isLoadingImage: Bool
     let onIngredientsAdded: (UUID?) -> Void
+    let onSaveRecipe: ((MealRecipe) -> Void)?
+    let useStandardNavigation: Bool
 
     @State private var selectedIngredients: Set<UUID>
     @State private var isAddingIngredients = false
 
-    init(recipe: Binding<MealRecipe?>, note: GroceryNote, isLoadingRecipe: Binding<Bool>, isLoadingImage: Binding<Bool>, onIngredientsAdded: @escaping (UUID?) -> Void = { _ in }) {
+    init(
+        recipe: Binding<MealRecipe?>,
+        note: GroceryNote? = nil,
+        isLoadingRecipe: Binding<Bool>,
+        isLoadingImage: Binding<Bool>,
+        onIngredientsAdded: @escaping (UUID?) -> Void = { _ in },
+        onSaveRecipe: ((MealRecipe) -> Void)? = nil,
+        useStandardNavigation: Bool = false
+    ) {
         self._recipe = recipe
         self.note = note
         self._isLoadingRecipe = isLoadingRecipe
         self._isLoadingImage = isLoadingImage
         self.onIngredientsAdded = onIngredientsAdded
+        self.onSaveRecipe = onSaveRecipe
+        self.useStandardNavigation = useStandardNavigation
         // All ingredients selected by default, except staples (salt, pepper, water)
         if let recipe = recipe.wrappedValue {
             let nonStaples = recipe.ingredients.filter { ingredient in
@@ -32,8 +44,21 @@ struct RecipeIngredientSelectionSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack(alignment: .topLeading) {
+        Group {
+            if useStandardNavigation {
+                recipeContent
+                    .navigationBarTitleDisplayMode(.inline)
+            } else {
+                NavigationStack {
+                    recipeContent
+                        .navigationBarHidden(true)
+                }
+            }
+        }
+    }
+
+    private var recipeContent: some View {
+        ZStack(alignment: .topLeading) {
                 VStack(spacing: 0) {
                     // Recipe Header and content
                     ScrollView {
@@ -261,9 +286,9 @@ struct RecipeIngredientSelectionSheet: View {
                     .background(Color(.systemBackground))
                 }
             }
-            .navigationBarHidden(true)
 
-                // Back button overlaid on image
+            // Back button overlaid on image (only for custom navigation)
+            if !useStandardNavigation {
                 Button {
                     dismiss()
                 } label: {
@@ -274,11 +299,11 @@ struct RecipeIngredientSelectionSheet: View {
                 }
                 .padding(16)
             }
-            .onChange(of: isLoadingRecipe) { _, isLoading in
-                // When recipe finishes loading, preselect all ingredients except staples
-                if !isLoading, let loadedRecipe = recipe, selectedIngredients.isEmpty {
-                    preselectIngredients(from: loadedRecipe)
-                }
+        }
+        .onChange(of: isLoadingRecipe) { _, isLoading in
+            // When recipe finishes loading, preselect all ingredients except staples
+            if !isLoading, let loadedRecipe = recipe, selectedIngredients.isEmpty {
+                preselectIngredients(from: loadedRecipe)
             }
         }
     }
@@ -316,6 +341,23 @@ struct RecipeIngredientSelectionSheet: View {
     private func addSelectedIngredientsToList() {
         guard let recipe = recipe else { return }
         isAddingIngredients = true
+
+        // If there's no note (e.g., from PopularRecipesSheet), just call the save callback
+        if note == nil, let onSaveRecipe = onSaveRecipe {
+            Task {
+                await MainActor.run {
+                    onSaveRecipe(recipe)
+                    isAddingIngredients = false
+                }
+            }
+            return
+        }
+
+        // Original behavior: add ingredients to note
+        guard let note = note else {
+            isAddingIngredients = false
+            return
+        }
 
         Task {
             do {
