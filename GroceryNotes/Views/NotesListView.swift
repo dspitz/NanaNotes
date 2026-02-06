@@ -22,7 +22,7 @@ struct NotesListView: View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 // Background color
-                Color(red: 0.882, green: 0.882, blue: 0.882) // #E1E1E1
+                Color(red: 0.941, green: 0.941, blue: 0.937) // #F0F0EF
                     .ignoresSafeArea()
 
                 // Profile and "+" buttons in top corners

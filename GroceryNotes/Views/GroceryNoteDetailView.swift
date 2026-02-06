@@ -97,7 +97,7 @@ struct GroceryNoteDetailView: View {
     }
 
     private var backgroundColor: some View {
-        Color(red: 0.882, green: 0.882, blue: 0.882)
+        Color(red: 0.941, green: 0.941, blue: 0.937) // #F0F0EF
             .ignoresSafeArea()
     }
 
@@ -107,7 +107,7 @@ struct GroceryNoteDetailView: View {
             ViewModeSegmentedControl(selectedMode: $viewMode)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 8)
-                .background(Color(red: 0.882, green: 0.882, blue: 0.882))
+                .background(Color(red: 0.941, green: 0.941, blue: 0.937)) // #F0F0EF
                 .transition(.move(edge: .top).combined(with: .opacity))
         }
     }
@@ -259,13 +259,12 @@ struct GroceryNoteDetailView: View {
                         ForEach(groupedItems, id: \.category) { category, items in
                             // Category header as a list row
                             Text(category.rawValue)
-                                .font(.outfit(52, weight: .medium))
-                                .lineSpacing(64 - 52) // Line height 64px minus font size 52px
+                                .font(.outfit(36, weight: .medium))
+                                .lineSpacing(44 - 36) // Line height 44px minus font size 36px
                                 .foregroundStyle(Color.black)
                                 .textCase(nil)
                                 .frame(maxWidth: .infinity, alignment: .center)
-                                .padding(.vertical, 8)
-                                .padding(.bottom, -64) // Negative padding to create overlap
+                                .padding(.top, 8)
                                 .listRowBackground(Color.clear)
                                 .listRowInsets(EdgeInsets(top: 16, leading: 24, bottom: 8, trailing: 24))
                                 .listRowSeparator(.hidden)
@@ -1969,6 +1968,7 @@ struct ItemRowView: View {
                 ZStack {
                     VisualEffectBlur(blurStyle: .extraLight, alpha: 0.5)
                         .clipShape(UnevenRoundedRectangle(cornerRadii: cornerRadius))
+                        .shadow(color: Color.black.opacity(0.08), radius: 28, x: 0, y: 10)
 
                     UnevenRoundedRectangle(cornerRadii: cornerRadius)
                         .strokeBorder(.white, lineWidth: 1)

@@ -45,7 +45,7 @@ struct MealsView: View {
                     }
                 }
             }
-            .background(Color(red: 0.882, green: 0.882, blue: 0.882))
+            .background(Color(red: 0.941, green: 0.941, blue: 0.937)) // #F0F0EF
             .navigationTitle("Recipes")
             .sheet(isPresented: $showingRecipeDetail) {
                 if let recipe = selectedRecipe {

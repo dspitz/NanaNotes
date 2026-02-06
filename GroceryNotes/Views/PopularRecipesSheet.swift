@@ -39,7 +39,7 @@ struct PopularRecipesSheet: View {
                             .padding(.bottom, 24)
                         }
                     }
-                    .background(Color(red: 0.882, green: 0.882, blue: 0.882))
+                    .background(Color(red: 0.941, green: 0.941, blue: 0.937)) // #F0F0EF
                 } else if let error = errorMessage {
                     // Error state
                     ContentUnavailableView(
@@ -79,7 +79,7 @@ struct PopularRecipesSheet: View {
                             .padding(.bottom, 24)
                         }
                     }
-                    .background(Color(red: 0.882, green: 0.882, blue: 0.882))
+                    .background(Color(red: 0.941, green: 0.941, blue: 0.937)) // #F0F0EF
                 }
             }
             .navigationTitle("Search Results")
