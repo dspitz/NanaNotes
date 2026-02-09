@@ -23,6 +23,16 @@ actor SpeechRecognitionService {
         self.speechRecognizer = SFSpeechRecognizer(locale: locale)
     }
 
+    deinit {
+        // Ensure audio resources are cleaned up when service is deallocated
+        if audioEngine.isRunning {
+            audioEngine.stop()
+            audioEngine.inputNode.removeTap(onBus: 0)
+        }
+        recognitionRequest?.endAudio()
+        recognitionTask?.cancel()
+    }
+
     /// Request authorization for speech recognition and microphone access
     func requestAuthorization() async -> Bool {
         // Request speech recognition authorization
@@ -85,6 +95,9 @@ actor SpeechRecognitionService {
         // Get the audio input node
         let inputNode = audioEngine.inputNode
 
+        // Remove any existing tap before installing a new one
+        inputNode.removeTap(onBus: 0)
+
         // Create the recognition task
         recognitionTask = speechRecognizer?.recognitionTask(with: recognitionRequest) { [weak self] result, error in
             Task {
@@ -92,10 +105,10 @@ actor SpeechRecognitionService {
             }
         }
 
-        // Configure the microphone input
+        // Configure the microphone input with a smaller buffer size to reduce memory usage
         let recordingFormat = inputNode.outputFormat(forBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: recordingFormat) { buffer, _ in
-            recognitionRequest.append(buffer)
+        inputNode.installTap(onBus: 0, bufferSize: 512, format: recordingFormat) { [weak recognitionRequest] buffer, _ in
+            recognitionRequest?.append(buffer)
         }
 
         // Start the audio engine
@@ -112,41 +125,60 @@ actor SpeechRecognitionService {
 
     /// Stop recording and return the final transcription
     func stopRecording() async -> String {
-        audioEngine.stop()
+        // Stop the audio engine first to prevent new buffers
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
 
+        // End the recognition request to release audio buffers
         recognitionRequest?.endAudio()
         recognitionRequest = nil
 
+        // Cancel and release the recognition task
         recognitionTask?.cancel()
         recognitionTask = nil
 
+        // Finish the continuation stream
         transcriptionContinuation?.finish()
         transcriptionContinuation = nil
 
-        // Deactivate audio session
+        // Deactivate audio session to release audio resources
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
 
-        return currentTranscription
+        // Store the result before clearing
+        let result = currentTranscription
+
+        // Clear the transcription to free memory
+        currentTranscription = ""
+
+        return result
     }
 
     /// Cancel recording without returning transcription
     func cancelRecording() async {
-        audioEngine.stop()
+        // Stop the audio engine first to prevent new buffers
+        if audioEngine.isRunning {
+            audioEngine.stop()
+        }
         audioEngine.inputNode.removeTap(onBus: 0)
 
+        // End the recognition request to release audio buffers
         recognitionRequest?.endAudio()
         recognitionRequest = nil
 
+        // Cancel and release the recognition task
         recognitionTask?.cancel()
         recognitionTask = nil
 
+        // Finish the continuation stream
         transcriptionContinuation?.finish()
         transcriptionContinuation = nil
 
+        // Clear the transcription to free memory
         currentTranscription = ""
 
-        // Deactivate audio session
+        // Deactivate audio session to release audio resources
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 

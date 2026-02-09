@@ -112,6 +112,11 @@ actor VoiceInputParserService {
 
         // If input is simple (no quantities, no complex phrasing), return as single item
         if !containsQuantities(singleLine) && parts.count == 1 {
+            // Check if this might be space-separated items
+            if looksLikeSpaceSeparatedList(singleLine) {
+                return nil  // Let AI handle it
+            }
+            // Single word item - return as-is
             return [ParsedIngredient(name: singleLine, quantity: nil, confidence: .high)]
         }
 
@@ -153,8 +158,25 @@ actor VoiceInputParserService {
         // 1. Input contains quantities
         // 2. Input is complex (multiple items without clear delimiters)
         // 3. Simple parsing returned nil
+        // 4. Input looks like space-separated list
 
-        return containsQuantities(text) || text.count > 100
+        return containsQuantities(text) || text.count > 100 || looksLikeSpaceSeparatedList(text)
+    }
+
+    private func looksLikeSpaceSeparatedList(_ text: String) -> Bool {
+        // Check if input has multiple words separated by spaces
+        let words = text.components(separatedBy: " ")
+                       .map { $0.trimmingCharacters(in: .whitespaces) }
+                       .filter { !$0.isEmpty }
+
+        // If we have 3+ words with no commas/semicolons/and, likely space-separated items
+        if words.count >= 3 {
+            let hasDelimiters = text.contains(",") || text.contains(";") ||
+                               text.contains(" and ") || text.contains(" & ")
+            return !hasDelimiters
+        }
+
+        return false
     }
 
     // MARK: - AI Parsing
@@ -177,10 +199,24 @@ actor VoiceInputParserService {
 
         Rules:
         - Extract item names in singular or plural form as spoken
-        - Extract quantities if mentioned (e.g., "2", "3 lbs", "a dozen")
+        - Extract quantities if mentioned (e.g., "2 lbs", "3 cups")
         - If no quantity is mentioned, use null
         - Normalize item names to common grocery terms
         - Split compound requests into separate items
+        - **IMPORTANT:** If input is space-separated words with no commas/and (e.g., "Avocados pears plums peaches"), use your grocery knowledge to intelligently decide if words form common multi-word items (like "peanut butter", "ice cream") or should be split into separate items
+        - For multi-word grocery items (peanut butter, soy sauce, etc.), keep them together
+        - For clearly separate items listed in sequence, split them apart
+        - When uncertain, prefer splitting into multiple items - user can review in confirmation sheet
+
+        Examples:
+        Input: "Avocados pears plums peaches"
+        Output: {"ingredients": [{"name": "Avocados", "quantity": null}, {"name": "Pears", "quantity": null}, {"name": "Plums", "quantity": null}, {"name": "Peaches", "quantity": null}]}
+
+        Input: "peanut butter jelly bread"
+        Output: {"ingredients": [{"name": "Peanut butter", "quantity": null}, {"name": "Jelly", "quantity": null}, {"name": "Bread", "quantity": null}]}
+
+        Input: "3 apples and 2 lbs chicken"
+        Output: {"ingredients": [{"name": "Apples", "quantity": "3"}, {"name": "Chicken", "quantity": "2 lbs"}]}
         """
 
         let userPrompt = "Parse this grocery list: \(text)"

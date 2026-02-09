@@ -29,6 +29,7 @@ private struct OpenAIClassificationResponse: Codable {
 struct GroceryNoteDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Bindable var note: GroceryNote
 
     @State private var newItemName = ""
@@ -44,6 +45,8 @@ struct GroceryNoteDetailView: View {
     @State private var currentTranscription = ""
     @State private var showingPermissionAlert = false
     @State private var speechService: SpeechRecognitionService?
+    @State private var showingVoiceConfirmation = false
+    @State private var parsedVoiceItems: [ParsedIngredient] = []
 
     // Recipe/Meal states
     @State private var showingRecipeSheet = false
@@ -825,6 +828,12 @@ struct GroceryNoteDetailView: View {
                 pendingMealIdea = nil
             }
         }
+        .sheet(isPresented: $showingVoiceConfirmation) {
+            VoiceInputConfirmationSheet(
+                parsedItems: parsedVoiceItems,
+                onConfirm: confirmVoiceItems
+            )
+        }
         .alert("Microphone Permission Required", isPresented: $showingPermissionAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -843,8 +852,26 @@ struct GroceryNoteDetailView: View {
             }
         }
         .onAppear {
-            speechService = SpeechRecognitionService()
+            // Only create speech service if it doesn't exist
+            if speechService == nil {
+                speechService = SpeechRecognitionService()
+            }
             loadMealDrafts()
+        }
+        .onDisappear {
+            // Clean up speech service when view disappears
+            cleanupSpeechService()
+        }
+        .onChange(of: scenePhase) { oldPhase, newPhase in
+            // Clean up audio resources when app goes to background
+            if newPhase == .background || newPhase == .inactive {
+                if isRecording {
+                    Task {
+                        await stopRecording()
+                    }
+                }
+                cleanupSpeechService()
+            }
         }
     }
 
@@ -1325,6 +1352,11 @@ struct GroceryNoteDetailView: View {
             isRecording = false
             currentTranscription = finalTranscription
             newItemName = formatTranscriptionForDisplay(finalTranscription)
+
+            // Parse items and show confirmation instead of auto-adding
+            if !currentTranscription.isEmpty {
+                parseAndShowConfirmation()
+            }
         }
     }
 
@@ -1337,6 +1369,47 @@ struct GroceryNoteDetailView: View {
             currentTranscription = ""
             newItemName = ""
         }
+    }
+
+    private func cleanupSpeechService() {
+        // Cancel any active recording first
+        if isRecording {
+            Task {
+                await cleanupRecording()
+            }
+        }
+        // Release the speech service to free memory
+        speechService = nil
+    }
+
+    private func parseAndShowConfirmation() {
+        guard !currentTranscription.isEmpty else { return }
+
+        Task {
+            let parserService = VoiceInputParserService(apiKey: AppConfiguration.isOpenAIConfigured ? AppConfiguration.openAIAPIKey : nil)
+
+            do {
+                // Use existing VoiceInputParserService to parse transcription
+                let parsed = try await parserService.parseTranscription(currentTranscription)
+
+                await MainActor.run {
+                    parsedVoiceItems = parsed
+                    showingVoiceConfirmation = true
+                }
+            } catch {
+                print("Voice input parsing failed: \(error.localizedDescription)")
+                // On parsing failure, keep the text in the field for manual submission
+            }
+        }
+    }
+
+    private func confirmVoiceItems() {
+        // Reuse existing batch add logic
+        addItemsBatch()
+
+        // Clear confirmation state
+        parsedVoiceItems = []
+        showingVoiceConfirmation = false
     }
 
     private func formatTranscriptionForDisplay(_ text: String) -> String {
@@ -2506,6 +2579,74 @@ struct FloatingAddItemBar: View {
         .padding(.top, 12)
         .padding(.bottom, isInputFocused ? 8 : 0)
         .animation(.spring(response: 0.3), value: newItemName.isEmpty)
+    }
+}
+
+struct VoiceInputConfirmationSheet: View {
+    let parsedItems: [ParsedIngredient]
+    let onConfirm: () -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                // Header
+                Text("Add Items to List")
+                    .font(.outfit(20, weight: .semiBold))
+                    .padding(.horizontal, 24)
+                    .padding(.top, 16)
+
+                // Items list
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(parsedItems, id: \.name) { item in
+                            HStack(spacing: 8) {
+                                Text("•")
+                                    .font(.outfit(16))
+                                Text(item.name)
+                                    .font(.outfit(16))
+                                if let quantity = item.quantity {
+                                    Text("(\(quantity))")
+                                        .font(.outfit(15))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 24)
+                }
+
+                // Actions
+                VStack(spacing: 12) {
+                    Button {
+                        onConfirm()
+                        dismiss()
+                    } label: {
+                        Text("Add All Items")
+                            .font(.outfit(17, weight: .semiBold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.black)
+
+                    Button {
+                        dismiss()
+                    } label: {
+                        Text("Cancel")
+                            .font(.outfit(17))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            .background(Color(red: 0.941, green: 0.941, blue: 0.937))
+        }
+        .presentationDetents([.medium])
+        .presentationDragIndicator(.visible)
     }
 }
 
