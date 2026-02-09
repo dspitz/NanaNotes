@@ -136,6 +136,7 @@ struct GroceryNoteDetailView: View {
             newItemName: $newItemName,
             isInputFocused: _isInputFocused,
             isRecording: $isRecording,
+            currentTranscription: currentTranscription,
             onAdd: {
                 handleInputSubmission()
             },
@@ -1332,7 +1333,8 @@ struct GroceryNoteDetailView: View {
             for await transcription in stream {
                 await MainActor.run {
                     currentTranscription = transcription
-                    newItemName = formatTranscriptionForDisplay(transcription)
+                    // Don't update newItemName during recording to prevent auto-submit
+                    // Only update it after stopRecording() is called
                 }
             }
         } catch {
@@ -1351,7 +1353,7 @@ struct GroceryNoteDetailView: View {
         await MainActor.run {
             isRecording = false
             currentTranscription = finalTranscription
-            newItemName = formatTranscriptionForDisplay(finalTranscription)
+            // Don't update newItemName - let the confirmation sheet handle adding items
 
             // Parse items and show confirmation instead of auto-adding
             if !currentTranscription.isEmpty {
@@ -1404,12 +1406,50 @@ struct GroceryNoteDetailView: View {
     }
 
     private func confirmVoiceItems() {
-        // Reuse existing batch add logic
-        addItemsBatch()
+        // Add the pre-parsed items from voice input
+        Task {
+            let categorizationService = CategorizationService(modelContext: modelContext)
 
-        // Clear confirmation state
-        parsedVoiceItems = []
-        showingVoiceConfirmation = false
+            // Process each pre-parsed item
+            for parsedItem in parsedVoiceItems {
+                let normalized = await categorizationService.normalizeItemName(parsedItem.name)
+                let (category, knowledge) = try await categorizationService.categorizeItem(parsedItem.name)
+
+                // Capture current user info for author tracking
+                let currentUserId = FirebaseAuthService.shared.currentUser?.uid
+                let currentUserName = FirebaseAuthService.shared.currentUser?.displayName
+                                   ?? FirebaseAuthService.shared.currentUser?.email
+                                   ?? "Unknown"
+
+                // Create the grocery item
+                await MainActor.run {
+                    let item = GroceryItem(
+                        name: parsedItem.name,
+                        normalizedName: normalized,
+                        quantity: parsedItem.quantity,
+                        category: category,
+                        storageAdvice: knowledge?.storageAdvice,
+                        shelfLifeDaysMin: knowledge?.shelfLifeDaysMin,
+                        shelfLifeDaysMax: knowledge?.shelfLifeDaysMax,
+                        shelfLifeSource: knowledge?.source,
+                        createdByUserId: currentUserId,
+                        createdByName: currentUserName
+                    )
+                    item.note = note
+                    note.items.append(item)
+                }
+            }
+
+            await MainActor.run {
+                note.updatedAt = Date()
+                try? modelContext.save()
+
+                // Clear confirmation state
+                parsedVoiceItems = []
+                showingVoiceConfirmation = false
+                currentTranscription = ""
+            }
+        }
     }
 
     private func formatTranscriptionForDisplay(_ text: String) -> String {
@@ -2476,6 +2516,7 @@ struct FloatingAddItemBar: View {
     @Binding var newItemName: String
     @FocusState var isInputFocused: Bool
     @Binding var isRecording: Bool
+    let currentTranscription: String
     let onAdd: () -> Void
     let onMicrophoneTap: () -> Void
 
@@ -2485,7 +2526,7 @@ struct FloatingAddItemBar: View {
                 ZStack(alignment: .leading) {
                     // Placeholder - left aligned, vertically centered
                     Group {
-                        if newItemName.isEmpty {
+                        if newItemName.isEmpty && !isRecording {
                             Text("Add item, recipe or meal idea")
                                 .foregroundStyle(Color.black.opacity(0.6))
                                 .padding(.leading, 24)
@@ -2495,6 +2536,16 @@ struct FloatingAddItemBar: View {
                         }
                     }
                     .animation(.easeOut(duration: 0.01), value: newItemName.isEmpty)
+
+                    // Recording transcription overlay - shown during recording
+                    if isRecording {
+                        Text(currentTranscription.isEmpty ? "Listening..." : currentTranscription)
+                            .foregroundStyle(currentTranscription.isEmpty ? Color.red.opacity(0.6) : .primary)
+                            .padding(.leading, 24)
+                            .padding(.trailing, 56)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .transition(.opacity)
+                    }
 
                     // Text Editor - left aligned, vertically centered
                     TextEditor(text: $newItemName)
@@ -2510,6 +2561,7 @@ struct FloatingAddItemBar: View {
                         .padding(.top, 14)
                         .padding(.bottom, 16)
                         .focused($isInputFocused)
+                        .opacity(isRecording ? 0 : 1) // Hide text editor during recording
                         .onChange(of: newItemName) { _, newValue in
                             // Detect Return key by checking for newline
                             if newValue.contains("\n") {
