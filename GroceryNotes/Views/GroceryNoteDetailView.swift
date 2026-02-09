@@ -2769,61 +2769,9 @@ struct VoiceInputSheet: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            if showingParsedItems {
-                // Parsed items view
-                Text("Add Items to List")
-                    .font(.outfit(20, weight: .semiBold))
-                    .padding(.top, 32)
-
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(parsedItems, id: \.name) { item in
-                            HStack(spacing: 8) {
-                                Text("•")
-                                    .font(.outfit(16))
-                                Text(item.name)
-                                    .font(.outfit(16))
-                                if let quantity = item.quantity {
-                                    Text("(\(quantity))")
-                                        .font(.outfit(15))
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
-                }
-
-                Spacer()
-
-                HStack(spacing: 12) {
-                    Button {
-                        onCancel()
-                    } label: {
-                        Text("Cancel")
-                            .font(.outfit(17))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.bordered)
-
-                    Button {
-                        onConfirm()
-                    } label: {
-                        Text("Add All Items")
-                            .font(.outfit(17, weight: .semiBold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.black)
-                }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 24)
-            } else {
-                // Recording/Parsing view
+        ZStack {
+            // Recording/Parsing view
+            VStack(spacing: 24) {
                 if isParsing {
                     ProgressView()
                         .scaleEffect(1.5)
@@ -2899,6 +2847,62 @@ struct VoiceInputSheet: View {
                     .padding(.bottom, 24)
                 }
             }
+            .opacity(showingParsedItems ? 0 : 1)
+
+            // Parsed items view
+            VStack(spacing: 24) {
+                Text("Add Items to List")
+                    .font(.outfit(20, weight: .semiBold))
+                    .padding(.top, 32)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(parsedItems, id: \.name) { item in
+                            HStack(spacing: 8) {
+                                Text("•")
+                                    .font(.outfit(16))
+                                Text(item.name)
+                                    .font(.outfit(16))
+                                if let quantity = item.quantity {
+                                    Text("(\(quantity))")
+                                        .font(.outfit(15))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
+                }
+
+                Spacer()
+
+                HStack(spacing: 12) {
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text("Cancel")
+                            .font(.outfit(17))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Button {
+                        onConfirm()
+                    } label: {
+                        Text("Add All Items")
+                            .font(.outfit(17, weight: .semiBold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.black)
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            .opacity(showingParsedItems ? 1 : 0)
         }
         .frame(maxWidth: .infinity)
         .frame(height: sheetHeight)
@@ -2916,7 +2920,7 @@ struct VoiceInputSheet: View {
         .padding(.horizontal, 16)
         .padding(.bottom, 40)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sheetHeight)
-        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingParsedItems)
+        .animation(.easeInOut(duration: 0.3), value: showingParsedItems)
     }
 }
 
