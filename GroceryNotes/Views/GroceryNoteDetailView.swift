@@ -136,7 +136,6 @@ struct GroceryNoteDetailView: View {
             newItemName: $newItemName,
             isInputFocused: _isInputFocused,
             isRecording: $isRecording,
-            currentTranscription: currentTranscription,
             onAdd: {
                 handleInputSubmission()
             },
@@ -828,6 +827,23 @@ struct GroceryNoteDetailView: View {
             if !isShowing {
                 pendingMealIdea = nil
             }
+        }
+        .sheet(isPresented: $isRecording) {
+            VoiceRecordingSheet(
+                currentTranscription: currentTranscription,
+                onDone: {
+                    Task {
+                        await stopRecording()
+                    }
+                },
+                onCancel: {
+                    Task {
+                        await cleanupRecording()
+                    }
+                }
+            )
+            .presentationDetents([.height(300)])
+            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingVoiceConfirmation) {
             VoiceInputConfirmationSheet(
@@ -2516,7 +2532,6 @@ struct FloatingAddItemBar: View {
     @Binding var newItemName: String
     @FocusState var isInputFocused: Bool
     @Binding var isRecording: Bool
-    let currentTranscription: String
     let onAdd: () -> Void
     let onMicrophoneTap: () -> Void
 
@@ -2526,7 +2541,7 @@ struct FloatingAddItemBar: View {
             ZStack(alignment: .leading) {
                 // Placeholder - left aligned, vertically centered
                 Group {
-                    if newItemName.isEmpty && !isRecording {
+                    if newItemName.isEmpty {
                         Text("Add item or meal idea")
                             .foregroundStyle(Color.black.opacity(0.6))
                             .padding(.leading, 24)
@@ -2536,16 +2551,6 @@ struct FloatingAddItemBar: View {
                     }
                 }
                 .animation(.easeOut(duration: 0.01), value: newItemName.isEmpty)
-
-                // Recording transcription overlay - shown during recording
-                if isRecording {
-                    Text(currentTranscription.isEmpty ? "Listening..." : currentTranscription)
-                        .foregroundStyle(currentTranscription.isEmpty ? Color.red.opacity(0.6) : .primary)
-                        .padding(.leading, 24)
-                        .padding(.trailing, 16)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .transition(.opacity)
-                }
 
                 // Text Editor - left aligned, vertically centered
                 TextEditor(text: $newItemName)
@@ -2561,7 +2566,6 @@ struct FloatingAddItemBar: View {
                     .padding(.top, 14)
                     .padding(.bottom, 16)
                     .focused($isInputFocused)
-                    .opacity(isRecording ? 0 : 1) // Hide text editor during recording
                     .onChange(of: newItemName) { _, newValue in
                         // Detect Return key by checking for newline
                         if newValue.contains("\n") {
@@ -2705,6 +2709,89 @@ struct VoiceInputConfirmationSheet: View {
         }
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+    }
+}
+
+struct VoiceRecordingSheet: View {
+    let currentTranscription: String
+    let onDone: () -> Void
+    let onCancel: () -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var isPulsing = false
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Microphone icon with pulse animation
+            ZStack {
+                Circle()
+                    .fill(Color.red.opacity(0.1))
+                    .frame(width: 80, height: 80)
+                    .scaleEffect(isPulsing ? 1.3 : 1.0)
+
+                Circle()
+                    .fill(Color.red.opacity(0.2))
+                    .frame(width: 64, height: 64)
+                    .scaleEffect(isPulsing ? 1.2 : 1.0)
+
+                Image(systemName: "mic.fill")
+                    .font(.system(size: 28))
+                    .foregroundStyle(.red)
+            }
+            .padding(.top, 32)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    isPulsing = true
+                }
+            }
+
+            // Transcription display
+            VStack(spacing: 8) {
+                Text("Listening...")
+                    .font(.outfit(14, weight: .medium))
+                    .foregroundStyle(.secondary)
+
+                ScrollView {
+                    Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
+                        .font(.outfit(18))
+                        .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                        .frame(maxWidth: .infinity)
+                }
+                .frame(maxHeight: 80)
+            }
+
+            Spacer()
+
+            // Action buttons
+            HStack(spacing: 12) {
+                Button {
+                    onCancel()
+                    dismiss()
+                } label: {
+                    Text("Cancel")
+                        .font(.outfit(17))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    onDone()
+                    dismiss()
+                } label: {
+                    Text("Done")
+                        .font(.outfit(17, weight: .semiBold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.black)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .background(Color(red: 0.941, green: 0.941, blue: 0.937))
     }
 }
 
