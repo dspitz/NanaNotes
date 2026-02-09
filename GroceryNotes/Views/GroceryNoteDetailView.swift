@@ -674,41 +674,43 @@ struct GroceryNoteDetailView: View {
 
     @ViewBuilder
     private var voiceRecordingOverlay: some View {
-        if isRecording {
-            ZStack {
-                // Dim background
-                Color.black.opacity(0.3)
-                    .ignoresSafeArea()
-                    .onTapGesture {
+        ZStack {
+            // Dim background
+            Color.black.opacity(isRecording ? 0.3 : 0)
+                .ignoresSafeArea()
+                .allowsHitTesting(isRecording)
+                .onTapGesture {
+                    Task {
+                        await cleanupRecording()
+                    }
+                }
+
+            // Recording sheet that expands from microphone button
+            VStack {
+                Spacer()
+
+                VoiceRecordingSheet(
+                    currentTranscription: currentTranscription,
+                    namespace: voiceRecordingNamespace,
+                    isRecording: isRecording,
+                    onDone: {
+                        Task {
+                            await stopRecording()
+                        }
+                    },
+                    onCancel: {
                         Task {
                             await cleanupRecording()
                         }
                     }
-
-                // Recording sheet that expands from microphone button
-                VStack {
-                    Spacer()
-
-                    VoiceRecordingSheet(
-                        currentTranscription: currentTranscription,
-                        namespace: voiceRecordingNamespace,
-                        onDone: {
-                            Task {
-                                await stopRecording()
-                            }
-                        },
-                        onCancel: {
-                            Task {
-                                await cleanupRecording()
-                            }
-                        }
-                    )
-                }
+                )
+                .opacity(isRecording ? 1 : 0)
+                .allowsHitTesting(isRecording)
             }
-            .zIndex(200)
-            .transition(.opacity)
-            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRecording)
         }
+        .zIndex(200)
+        .allowsHitTesting(isRecording)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRecording)
     }
 
     var body: some View {
@@ -2619,34 +2621,34 @@ struct FloatingAddItemBar: View {
             .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
 
             // Microphone button - floating circle
-            if !isRecording {
-                Button {
-                    onMicrophoneTap()
-                } label: {
-                    ZStack {
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 20))
-                            .foregroundStyle(Color.black.opacity(0.4))
-                    }
+            Button {
+                onMicrophoneTap()
+            } label: {
+                ZStack {
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(Color.black.opacity(0.4))
                 }
-                .frame(width: 64, height: 64)
-                .background(
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                        Circle()
-                            .fill(Color.white.opacity(0.85))
-                    }
-                    .matchedGeometryEffect(id: "voiceButton", in: namespace)
-                )
-                .overlay(
-                    Circle()
-                        .stroke(Color.white, lineWidth: 1)
-                )
-                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
-                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
-                .accessibilityLabel("Start voice recording")
             }
+            .frame(width: 64, height: 64)
+            .background(
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                    Circle()
+                        .fill(Color.white.opacity(0.85))
+                }
+                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: !isRecording)
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.white, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+            .opacity(isRecording ? 0 : 1)
+            .allowsHitTesting(!isRecording)
+            .accessibilityLabel("Start voice recording")
 
             if !newItemName.isEmpty {
                 Button {
@@ -2737,6 +2739,7 @@ struct VoiceInputConfirmationSheet: View {
 struct VoiceRecordingSheet: View {
     let currentTranscription: String
     let namespace: Namespace.ID
+    let isRecording: Bool
     let onDone: () -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -2823,7 +2826,7 @@ struct VoiceRecordingSheet: View {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.white.opacity(0.85))
                 )
-                .matchedGeometryEffect(id: "voiceButton", in: namespace)
+                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
                 .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
         )
