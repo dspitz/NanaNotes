@@ -691,36 +691,26 @@ struct GroceryNoteDetailView: View {
             VStack {
                 Spacer()
 
-                if showingParsedItems {
-                    // Show parsed items confirmation
-                    VoiceParsedItemsSheet(
-                        parsedItems: parsedVoiceItems,
-                        namespace: voiceRecordingNamespace,
-                        onConfirm: {
-                            confirmVoiceItems()
-                            dismissVoiceOverlay()
-                        },
-                        onCancel: {
-                            dismissVoiceOverlay()
+                VoiceInputSheet(
+                    currentTranscription: currentTranscription,
+                    parsedItems: parsedVoiceItems,
+                    namespace: voiceRecordingNamespace,
+                    isRecording: isRecording,
+                    isParsing: isParsing,
+                    showingParsedItems: showingParsedItems,
+                    onDone: {
+                        Task {
+                            await handleVoiceDone()
                         }
-                    )
-                } else {
-                    // Show recording interface
-                    VoiceRecordingSheet(
-                        currentTranscription: currentTranscription,
-                        namespace: voiceRecordingNamespace,
-                        isRecording: isRecording,
-                        isParsing: isParsing,
-                        onDone: {
-                            Task {
-                                await handleVoiceDone()
-                            }
-                        },
-                        onCancel: {
-                            dismissVoiceOverlay()
-                        }
-                    )
-                }
+                    },
+                    onConfirm: {
+                        confirmVoiceItems()
+                        dismissVoiceOverlay()
+                    },
+                    onCancel: {
+                        dismissVoiceOverlay()
+                    }
+                )
             }
             .opacity(isOverlayVisible ? 1 : 0)
             .allowsHitTesting(isOverlayVisible)
@@ -2754,69 +2744,60 @@ struct VoiceInputConfirmationSheet: View {
     }
 }
 
-struct VoiceRecordingSheet: View {
+struct VoiceInputSheet: View {
     let currentTranscription: String
+    let parsedItems: [ParsedIngredient]
     let namespace: Namespace.ID
     let isRecording: Bool
     let isParsing: Bool
+    let showingParsedItems: Bool
     let onDone: () -> Void
+    let onConfirm: () -> Void
     let onCancel: () -> Void
     @State private var isPulsing = false
 
+    private var sheetHeight: CGFloat {
+        if showingParsedItems {
+            // Calculate dynamic height based on items (min 400, max 600)
+            let baseHeight: CGFloat = 220 // Header + buttons + padding
+            let itemHeight: CGFloat = 32 // Each item row
+            let calculatedHeight = baseHeight + (CGFloat(parsedItems.count) * itemHeight)
+            return min(max(calculatedHeight, 400), 600)
+        } else {
+            return 350
+        }
+    }
+
     var body: some View {
         VStack(spacing: 24) {
-            // Microphone icon with pulse animation or loading indicator
-            if isParsing {
-                ProgressView()
-                    .scaleEffect(1.5)
+            if showingParsedItems {
+                // Parsed items view
+                Text("Add Items to List")
+                    .font(.outfit(20, weight: .semiBold))
                     .padding(.top, 32)
-            } else {
-                ZStack {
-                    Circle()
-                        .fill(Color.red.opacity(0.1))
-                        .frame(width: 80, height: 80)
-                        .scaleEffect(isPulsing ? 1.3 : 1.0)
 
-                    Circle()
-                        .fill(Color.red.opacity(0.2))
-                        .frame(width: 64, height: 64)
-                        .scaleEffect(isPulsing ? 1.2 : 1.0)
-
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 28))
-                        .foregroundStyle(.red)
-                }
-                .padding(.top, 32)
-                .onAppear {
-                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                        isPulsing = true
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(parsedItems, id: \.name) { item in
+                            HStack(spacing: 8) {
+                                Text("•")
+                                    .font(.outfit(16))
+                                Text(item.name)
+                                    .font(.outfit(16))
+                                if let quantity = item.quantity {
+                                    Text("(\(quantity))")
+                                        .font(.outfit(15))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 24)
                 }
-            }
 
-            // Transcription display
-            VStack(spacing: 8) {
-                Text(isParsing ? "Processing..." : "Listening...")
-                    .font(.outfit(14, weight: .medium))
-                    .foregroundStyle(.secondary)
+                Spacer()
 
-                if !isParsing {
-                    ScrollView {
-                        Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
-                            .font(.outfit(18))
-                            .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 24)
-                            .frame(maxWidth: .infinity)
-                    }
-                    .frame(maxHeight: 80)
-                }
-            }
-
-            Spacer()
-
-            // Action buttons
-            if !isParsing {
                 HStack(spacing: 12) {
                     Button {
                         onCancel()
@@ -2829,9 +2810,9 @@ struct VoiceRecordingSheet: View {
                     .buttonStyle(.bordered)
 
                     Button {
-                        onDone()
+                        onConfirm()
                     } label: {
-                        Text("Done")
+                        Text("Add All Items")
                             .font(.outfit(17, weight: .semiBold))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
@@ -2841,90 +2822,86 @@ struct VoiceRecordingSheet: View {
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: 350)
-        .background(
-            RoundedRectangle(cornerRadius: 24)
-                .fill(.ultraThinMaterial)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(Color.white.opacity(0.85))
-                )
-                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording)
-                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
-                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
-        )
-        .padding(.horizontal, 16)
-        .padding(.bottom, 40)
-    }
-}
+            } else {
+                // Recording/Parsing view
+                if isParsing {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                        .padding(.top, 32)
+                } else {
+                    ZStack {
+                        Circle()
+                            .fill(Color.red.opacity(0.1))
+                            .frame(width: 80, height: 80)
+                            .scaleEffect(isPulsing ? 1.3 : 1.0)
 
-struct VoiceParsedItemsSheet: View {
-    let parsedItems: [ParsedIngredient]
-    let namespace: Namespace.ID
-    let onConfirm: () -> Void
-    let onCancel: () -> Void
+                        Circle()
+                            .fill(Color.red.opacity(0.2))
+                            .frame(width: 64, height: 64)
+                            .scaleEffect(isPulsing ? 1.2 : 1.0)
 
-    var body: some View {
-        VStack(spacing: 24) {
-            // Header
-            Text("Add Items to List")
-                .font(.outfit(20, weight: .semiBold))
-                .padding(.top, 32)
-
-            // Items list
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    ForEach(parsedItems, id: \.name) { item in
-                        HStack(spacing: 8) {
-                            Text("•")
-                                .font(.outfit(16))
-                            Text(item.name)
-                                .font(.outfit(16))
-                            if let quantity = item.quantity {
-                                Text("(\(quantity))")
-                                    .font(.outfit(15))
-                                    .foregroundStyle(.secondary)
-                            }
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 28))
+                            .foregroundStyle(.red)
+                    }
+                    .padding(.top, 32)
+                    .onAppear {
+                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                            isPulsing = true
                         }
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 24)
-            }
 
-            Spacer()
+                VStack(spacing: 8) {
+                    Text(isParsing ? "Processing..." : "Listening...")
+                        .font(.outfit(14, weight: .medium))
+                        .foregroundStyle(.secondary)
 
-            // Action buttons
-            HStack(spacing: 12) {
-                Button {
-                    onCancel()
-                } label: {
-                    Text("Cancel")
-                        .font(.outfit(17))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                    if !isParsing {
+                        ScrollView {
+                            Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
+                                .font(.outfit(18))
+                                .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
+                                .multilineTextAlignment(.center)
+                                .padding(.horizontal, 24)
+                                .frame(maxWidth: .infinity)
+                        }
+                        .frame(maxHeight: 80)
+                    }
                 }
-                .buttonStyle(.bordered)
 
-                Button {
-                    onConfirm()
-                } label: {
-                    Text("Add All Items")
-                        .font(.outfit(17, weight: .semiBold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                Spacer()
+
+                if !isParsing {
+                    HStack(spacing: 12) {
+                        Button {
+                            onCancel()
+                        } label: {
+                            Text("Cancel")
+                                .font(.outfit(17))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button {
+                            onDone()
+                        } label: {
+                            Text("Done")
+                                .font(.outfit(17, weight: .semiBold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.black)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.black)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 450)
+        .frame(height: sheetHeight)
         .background(
             RoundedRectangle(cornerRadius: 24)
                 .fill(.ultraThinMaterial)
@@ -2932,12 +2909,14 @@ struct VoiceParsedItemsSheet: View {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.white.opacity(0.85))
                 )
-                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: true)
+                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording || showingParsedItems)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
                 .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
         )
         .padding(.horizontal, 16)
         .padding(.bottom, 40)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sheetHeight)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingParsedItems)
     }
 }
 
