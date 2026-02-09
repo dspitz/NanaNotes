@@ -40,6 +40,7 @@ struct GroceryNoteDetailView: View {
     @StateObject private var keyboardResponder = KeyboardResponder()
 
     // Voice recording states
+    @State private var showingVoiceSheet = false
     @State private var isRecording = false
     @State private var recordingPermissionDenied = false
     @State private var currentTranscription = ""
@@ -49,6 +50,7 @@ struct GroceryNoteDetailView: View {
     @State private var parsedVoiceItems: [ParsedIngredient] = []
     @State private var isParsing = false
     @State private var showingParsedItems = false
+    @State private var voiceParsingError: String?
 
     // Recipe/Meal states
     @State private var showingRecipeSheet = false
@@ -694,6 +696,7 @@ struct GroceryNoteDetailView: View {
                 VoiceInputSheet(
                     currentTranscription: currentTranscription,
                     parsedItems: parsedVoiceItems,
+                    parsingError: voiceParsingError,
                     namespace: voiceRecordingNamespace,
                     isRecording: isRecording,
                     isParsing: isParsing,
@@ -731,28 +734,53 @@ struct GroceryNoteDetailView: View {
                 showingParsedItems = false
                 parsedVoiceItems = []
                 isParsing = false
+                voiceParsingError = nil
             }
         }
     }
 
     private func handleVoiceDone() async {
-        guard let service = speechService else { return }
+        guard let service = speechService else {
+            print("⚠️ Speech service is nil")
+            return
+        }
 
+        print("🎤 handleVoiceDone: Starting...")
+
+        // Transition to parsing state ATOMICALLY
         await MainActor.run {
-            isParsing = true
+            withAnimation {
+                print("🎤 State before: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+                isParsing = true
+                // Keep isRecording true temporarily to ensure overlay stays visible
+                print("🎤 State after setting isParsing=true: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+            }
         }
 
         let finalTranscription = await service.stopRecording()
+        print("🎤 Got transcription: '\(finalTranscription)'")
 
         await MainActor.run {
-            isRecording = false
-            currentTranscription = finalTranscription
+            withAnimation {
+                isRecording = false
+                currentTranscription = finalTranscription
+                // isParsing is still true, so overlay remains visible
+                print("🎤 State after stopping: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+            }
         }
 
         // Parse the transcription
         guard !finalTranscription.isEmpty else {
+            print("⚠️ Empty transcription - showing error")
             await MainActor.run {
-                isParsing = false
+                withAnimation {
+                    voiceParsingError = "No speech detected. Please try again."
+                    parsedVoiceItems = []
+                    // CRITICAL: Set showingParsedItems BEFORE clearing isParsing
+                    showingParsedItems = true
+                    isParsing = false
+                    print("🎤 State after error: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+                }
             }
             return
         }
@@ -760,17 +788,31 @@ struct GroceryNoteDetailView: View {
         let parserService = VoiceInputParserService(apiKey: AppConfiguration.isOpenAIConfigured ? AppConfiguration.openAIAPIKey : nil)
 
         do {
+            print("🎤 Parsing transcription...")
             let parsed = try await parserService.parseTranscription(finalTranscription)
+            print("✅ Parsed \(parsed.count) items")
 
             await MainActor.run {
-                parsedVoiceItems = parsed
-                isParsing = false
-                showingParsedItems = true
+                withAnimation {
+                    parsedVoiceItems = parsed
+                    voiceParsingError = nil
+                    // CRITICAL: Set showingParsedItems BEFORE clearing isParsing
+                    showingParsedItems = true
+                    isParsing = false
+                    print("🎤 State after success: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+                }
             }
         } catch {
-            print("Voice input parsing failed: \(error.localizedDescription)")
+            print("❌ Voice input parsing failed: \(error.localizedDescription)")
             await MainActor.run {
-                isParsing = false
+                withAnimation {
+                    voiceParsingError = "Could not parse the input. Please try again."
+                    parsedVoiceItems = []
+                    // CRITICAL: Set showingParsedItems BEFORE clearing isParsing
+                    showingParsedItems = true
+                    isParsing = false
+                    print("🎤 State after parsing error: isRecording=\(isRecording), isParsing=\(isParsing), showingParsedItems=\(showingParsedItems)")
+                }
             }
         }
     }
@@ -2637,6 +2679,7 @@ struct FloatingAddItemBar: View {
                     Image(systemName: "mic.fill")
                         .font(.system(size: 20))
                         .foregroundStyle(Color.black.opacity(0.4))
+                        .matchedGeometryEffect(id: "micIcon", in: namespace, isSource: !isRecording)
                 }
             }
             .frame(width: 64, height: 64)
@@ -2644,8 +2687,10 @@ struct FloatingAddItemBar: View {
                 ZStack {
                     Circle()
                         .fill(.ultraThinMaterial)
+                        .matchedGeometryEffect(id: "micCircleOuter", in: namespace, isSource: !isRecording)
                     Circle()
                         .fill(Color.white.opacity(0.85))
+                        .matchedGeometryEffect(id: "micCircle", in: namespace, isSource: !isRecording)
                 }
                 .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: !isRecording)
             )
@@ -2748,6 +2793,7 @@ struct VoiceInputConfirmationSheet: View {
 struct VoiceInputSheet: View {
     let currentTranscription: String
     let parsedItems: [ParsedIngredient]
+    let parsingError: String?
     let namespace: Namespace.ID
     let isRecording: Bool
     let isParsing: Bool
@@ -2783,15 +2829,18 @@ struct VoiceInputSheet: View {
                             .fill(Color.red.opacity(0.1))
                             .frame(width: 80, height: 80)
                             .scaleEffect(isPulsing ? 1.3 : 1.0)
+                            .matchedGeometryEffect(id: "micCircleOuter", in: namespace, isSource: isRecording)
 
                         Circle()
                             .fill(Color.red.opacity(0.2))
                             .frame(width: 64, height: 64)
                             .scaleEffect(isPulsing ? 1.2 : 1.0)
+                            .matchedGeometryEffect(id: "micCircle", in: namespace, isSource: isRecording)
 
                         Image(systemName: "mic.fill")
                             .font(.system(size: 28))
                             .foregroundStyle(.red)
+                            .matchedGeometryEffect(id: "micIcon", in: namespace, isSource: isRecording)
                     }
                     .padding(.top, 32)
                     .onAppear {
@@ -2852,28 +2901,45 @@ struct VoiceInputSheet: View {
 
             // Parsed items view
             VStack(spacing: 24) {
-                Text("Add Items to List")
+                Text(parsingError != nil ? "Error" : "Add Items to List")
                     .font(.outfit(20, weight: .semiBold))
                     .padding(.top, 32)
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(parsedItems, id: \.name) { item in
-                            HStack(spacing: 8) {
-                                Text("•")
-                                    .font(.outfit(16))
-                                Text(item.name)
-                                    .font(.outfit(16))
-                                if let quantity = item.quantity {
-                                    Text("(\(quantity))")
-                                        .font(.outfit(15))
-                                        .foregroundStyle(.secondary)
+                if let error = parsingError {
+                    // Show error message
+                    VStack(spacing: 16) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.orange)
+
+                        Text(error)
+                            .font(.outfit(16))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                    }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    // Show parsed items
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(parsedItems, id: \.name) { item in
+                                HStack(spacing: 8) {
+                                    Text("•")
+                                        .font(.outfit(16))
+                                    Text(item.name)
+                                        .font(.outfit(16))
+                                    if let quantity = item.quantity {
+                                        Text("(\(quantity))")
+                                            .font(.outfit(15))
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
                             }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 24)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 24)
                 }
 
                 Spacer()
@@ -2882,23 +2948,25 @@ struct VoiceInputSheet: View {
                     Button {
                         onCancel()
                     } label: {
-                        Text("Cancel")
+                        Text(parsingError != nil ? "Close" : "Cancel")
                             .font(.outfit(17))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 14)
                     }
                     .buttonStyle(.bordered)
 
-                    Button {
-                        onConfirm()
-                    } label: {
-                        Text("Add All Items")
-                            .font(.outfit(17, weight: .semiBold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
+                    if parsingError == nil {
+                        Button {
+                            onConfirm()
+                        } label: {
+                            Text("Add All Items")
+                                .font(.outfit(17, weight: .semiBold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.black)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.black)
                 }
                 .padding(.horizontal, 24)
                 .padding(.bottom, 24)
@@ -2914,7 +2982,7 @@ struct VoiceInputSheet: View {
                     RoundedRectangle(cornerRadius: 24)
                         .fill(Color.white.opacity(0.85))
                 )
-                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording || showingParsedItems)
+                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording || isParsing || showingParsedItems)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
                 .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
         )
