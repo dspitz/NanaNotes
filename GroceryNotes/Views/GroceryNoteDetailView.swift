@@ -2522,83 +2522,55 @@ struct FloatingAddItemBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            ZStack(alignment: .trailing) {
-                ZStack(alignment: .leading) {
-                    // Placeholder - left aligned, vertically centered
-                    Group {
-                        if newItemName.isEmpty && !isRecording {
-                            Text("Add item, recipe or meal idea")
-                                .foregroundStyle(Color.black.opacity(0.6))
-                                .padding(.leading, 24)
-                                .padding(.trailing, 56)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .transition(.opacity)
-                        }
-                    }
-                    .animation(.easeOut(duration: 0.01), value: newItemName.isEmpty)
-
-                    // Recording transcription overlay - shown during recording
-                    if isRecording {
-                        Text(currentTranscription.isEmpty ? "Listening..." : currentTranscription)
-                            .foregroundStyle(currentTranscription.isEmpty ? Color.red.opacity(0.6) : .primary)
+            // Main input bar
+            ZStack(alignment: .leading) {
+                // Placeholder - left aligned, vertically centered
+                Group {
+                    if newItemName.isEmpty && !isRecording {
+                        Text("Add item or meal idea")
+                            .foregroundStyle(Color.black.opacity(0.6))
                             .padding(.leading, 24)
-                            .padding(.trailing, 56)
+                            .padding(.trailing, 16)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .transition(.opacity)
                     }
-
-                    // Text Editor - left aligned, vertically centered
-                    TextEditor(text: $newItemName)
-                        .textFieldStyle(.plain)
-                        .foregroundStyle(.primary)
-                        .scrollContentBackground(.hidden)
-                        .scrollDisabled(true)
-                        .textInputAutocapitalization(.never)
-                        .keyboardType(.asciiCapable)
-                        .background(Color.clear)
-                        .padding(.leading, 20)
-                        .padding(.trailing, 52)
-                        .padding(.top, 14)
-                        .padding(.bottom, 16)
-                        .focused($isInputFocused)
-                        .opacity(isRecording ? 0 : 1) // Hide text editor during recording
-                        .onChange(of: newItemName) { _, newValue in
-                            // Detect Return key by checking for newline
-                            if newValue.contains("\n") {
-                                // Remove the newline
-                                newItemName = newValue.replacingOccurrences(of: "\n", with: "")
-                                // Submit
-                                onAdd()
-                            }
-                        }
                 }
-                .frame(height: 64)
+                .animation(.easeOut(duration: 0.01), value: newItemName.isEmpty)
 
-                // Microphone button inside capsule on the right
-                VStack {
-                    Button {
-                        onMicrophoneTap()
-                    } label: {
-                        ZStack {
-                            if isRecording {
-                                Circle()
-                                    .fill(Color.red.opacity(0.2))
-                                    .frame(width: 36, height: 36)
-                                    .scaleEffect(isRecording ? 1.2 : 1.0)
-                                    .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isRecording)
-                            }
-                            Image(systemName: "mic.fill")
-                                .font(.system(size: 18))
-                                .foregroundStyle(isRecording ? .red : Color.black.opacity(0.4))
+                // Recording transcription overlay - shown during recording
+                if isRecording {
+                    Text(currentTranscription.isEmpty ? "Listening..." : currentTranscription)
+                        .foregroundStyle(currentTranscription.isEmpty ? Color.red.opacity(0.6) : .primary)
+                        .padding(.leading, 24)
+                        .padding(.trailing, 16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                }
+
+                // Text Editor - left aligned, vertically centered
+                TextEditor(text: $newItemName)
+                    .textFieldStyle(.plain)
+                    .foregroundStyle(.primary)
+                    .scrollContentBackground(.hidden)
+                    .scrollDisabled(true)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.asciiCapable)
+                    .background(Color.clear)
+                    .padding(.leading, 20)
+                    .padding(.trailing, 16)
+                    .padding(.top, 14)
+                    .padding(.bottom, 16)
+                    .focused($isInputFocused)
+                    .opacity(isRecording ? 0 : 1) // Hide text editor during recording
+                    .onChange(of: newItemName) { _, newValue in
+                        // Detect Return key by checking for newline
+                        if newValue.contains("\n") {
+                            // Remove the newline
+                            newItemName = newValue.replacingOccurrences(of: "\n", with: "")
+                            // Submit
+                            onAdd()
                         }
                     }
-                    .frame(width: 44, height: 44)
-                    .accessibilityLabel(isRecording ? "Stop voice recording" : "Start voice recording")
-
-                    Spacer()
-                }
-                .padding(.trailing, 8)
-                .padding(.top, 10)
             }
             .frame(height: 64)
             .background(
@@ -2615,6 +2587,40 @@ struct FloatingAddItemBar: View {
             )
             .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
             .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+
+            // Microphone button - floating circle
+            Button {
+                onMicrophoneTap()
+            } label: {
+                ZStack {
+                    if isRecording {
+                        Circle()
+                            .fill(Color.red.opacity(0.2))
+                            .frame(width: 48, height: 48)
+                            .scaleEffect(isRecording ? 1.2 : 1.0)
+                            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isRecording)
+                    }
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(isRecording ? .red : Color.black.opacity(0.4))
+                }
+            }
+            .frame(width: 64, height: 64)
+            .background(
+                ZStack {
+                    Circle()
+                        .fill(.ultraThinMaterial)
+                    Circle()
+                        .fill(Color.white.opacity(0.85))
+                }
+            )
+            .overlay(
+                Circle()
+                    .stroke(Color.white, lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+            .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+            .accessibilityLabel(isRecording ? "Stop voice recording" : "Start voice recording")
 
             if !newItemName.isEmpty {
                 Button {
