@@ -676,7 +676,7 @@ struct GroceryNoteDetailView: View {
 
     @ViewBuilder
     private var voiceRecordingOverlay: some View {
-        let isOverlayVisible = isRecording || showingParsedItems
+        let isOverlayVisible = isRecording || isParsing || showingParsedItems
 
         ZStack {
             // Dim background
@@ -718,6 +718,7 @@ struct GroceryNoteDetailView: View {
         .zIndex(200)
         .allowsHitTesting(isOverlayVisible)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRecording)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isParsing)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingParsedItems)
     }
 
