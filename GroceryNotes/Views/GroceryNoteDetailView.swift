@@ -47,6 +47,8 @@ struct GroceryNoteDetailView: View {
     @State private var speechService: SpeechRecognitionService?
     @State private var showingVoiceConfirmation = false
     @State private var parsedVoiceItems: [ParsedIngredient] = []
+    @State private var isParsing = false
+    @State private var showingParsedItems = false
 
     // Recipe/Meal states
     @State private var showingRecipeSheet = false
@@ -674,43 +676,112 @@ struct GroceryNoteDetailView: View {
 
     @ViewBuilder
     private var voiceRecordingOverlay: some View {
+        let isOverlayVisible = isRecording || showingParsedItems
+
         ZStack {
             // Dim background
-            Color.black.opacity(isRecording ? 0.3 : 0)
+            Color.black.opacity(isOverlayVisible ? 0.3 : 0)
                 .ignoresSafeArea()
-                .allowsHitTesting(isRecording)
+                .allowsHitTesting(isOverlayVisible)
                 .onTapGesture {
-                    Task {
-                        await cleanupRecording()
-                    }
+                    dismissVoiceOverlay()
                 }
 
             // Recording sheet that expands from microphone button
             VStack {
                 Spacer()
 
-                VoiceRecordingSheet(
-                    currentTranscription: currentTranscription,
-                    namespace: voiceRecordingNamespace,
-                    isRecording: isRecording,
-                    onDone: {
-                        Task {
-                            await stopRecording()
+                if showingParsedItems {
+                    // Show parsed items confirmation
+                    VoiceParsedItemsSheet(
+                        parsedItems: parsedVoiceItems,
+                        namespace: voiceRecordingNamespace,
+                        onConfirm: {
+                            confirmVoiceItems()
+                            dismissVoiceOverlay()
+                        },
+                        onCancel: {
+                            dismissVoiceOverlay()
                         }
-                    },
-                    onCancel: {
-                        Task {
-                            await cleanupRecording()
+                    )
+                } else {
+                    // Show recording interface
+                    VoiceRecordingSheet(
+                        currentTranscription: currentTranscription,
+                        namespace: voiceRecordingNamespace,
+                        isRecording: isRecording,
+                        isParsing: isParsing,
+                        onDone: {
+                            Task {
+                                await handleVoiceDone()
+                            }
+                        },
+                        onCancel: {
+                            dismissVoiceOverlay()
                         }
-                    }
-                )
-                .opacity(isRecording ? 1 : 0)
-                .allowsHitTesting(isRecording)
+                    )
+                }
             }
+            .opacity(isOverlayVisible ? 1 : 0)
+            .allowsHitTesting(isOverlayVisible)
         }
         .zIndex(200)
-        .allowsHitTesting(isRecording)
+        .allowsHitTesting(isOverlayVisible)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRecording)
+        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: showingParsedItems)
+    }
+
+    private func dismissVoiceOverlay() {
+        Task {
+            if isRecording {
+                await cleanupRecording()
+            }
+            await MainActor.run {
+                showingParsedItems = false
+                parsedVoiceItems = []
+                isParsing = false
+            }
+        }
+    }
+
+    private func handleVoiceDone() async {
+        guard let service = speechService else { return }
+
+        await MainActor.run {
+            isParsing = true
+        }
+
+        let finalTranscription = await service.stopRecording()
+
+        await MainActor.run {
+            isRecording = false
+            currentTranscription = finalTranscription
+        }
+
+        // Parse the transcription
+        guard !finalTranscription.isEmpty else {
+            await MainActor.run {
+                isParsing = false
+            }
+            return
+        }
+
+        let parserService = VoiceInputParserService(apiKey: AppConfiguration.isOpenAIConfigured ? AppConfiguration.openAIAPIKey : nil)
+
+        do {
+            let parsed = try await parserService.parseTranscription(finalTranscription)
+
+            await MainActor.run {
+                parsedVoiceItems = parsed
+                isParsing = false
+                showingParsedItems = true
+            }
+        } catch {
+            print("Voice input parsing failed: \(error.localizedDescription)")
+            await MainActor.run {
+                isParsing = false
+            }
+        }
     }
 
     var body: some View {
@@ -872,12 +943,6 @@ struct GroceryNoteDetailView: View {
                 pendingMealIdea = nil
             }
         }
-        .sheet(isPresented: $showingVoiceConfirmation) {
-            VoiceInputConfirmationSheet(
-                parsedItems: parsedVoiceItems,
-                onConfirm: confirmVoiceItems
-            )
-        }
         .alert("Microphone Permission Required", isPresented: $showingPermissionAlert) {
             Button("Open Settings") {
                 if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -909,11 +974,7 @@ struct GroceryNoteDetailView: View {
         .onChange(of: scenePhase) { oldPhase, newPhase in
             // Clean up audio resources when app goes to background
             if newPhase == .background || newPhase == .inactive {
-                if isRecording {
-                    Task {
-                        await stopRecording()
-                    }
-                }
+                dismissVoiceOverlay()
                 cleanupSpeechService()
             }
         }
@@ -1332,14 +1393,9 @@ struct GroceryNoteDetailView: View {
         let impact = UIImpactFeedbackGenerator(style: .light)
         impact.impactOccurred()
 
-        if isRecording {
-            Task {
-                await stopRecording()
-            }
-        } else {
-            Task {
-                await startRecording()
-            }
+        // Button is disabled when recording, so this only starts recording
+        Task {
+            await startRecording()
         }
     }
 
@@ -1388,22 +1444,7 @@ struct GroceryNoteDetailView: View {
         }
     }
 
-    private func stopRecording() async {
-        guard let service = speechService else { return }
-
-        let finalTranscription = await service.stopRecording()
-
-        await MainActor.run {
-            isRecording = false
-            currentTranscription = finalTranscription
-            // Don't update newItemName - let the confirmation sheet handle adding items
-
-            // Parse items and show confirmation instead of auto-adding
-            if !currentTranscription.isEmpty {
-                parseAndShowConfirmation()
-            }
-        }
-    }
+    // Removed: old stopRecording - replaced with handleVoiceDone in overlay
 
     private func cleanupRecording() async {
         guard let service = speechService else { return }
@@ -1427,26 +1468,7 @@ struct GroceryNoteDetailView: View {
         speechService = nil
     }
 
-    private func parseAndShowConfirmation() {
-        guard !currentTranscription.isEmpty else { return }
-
-        Task {
-            let parserService = VoiceInputParserService(apiKey: AppConfiguration.isOpenAIConfigured ? AppConfiguration.openAIAPIKey : nil)
-
-            do {
-                // Use existing VoiceInputParserService to parse transcription
-                let parsed = try await parserService.parseTranscription(currentTranscription)
-
-                await MainActor.run {
-                    parsedVoiceItems = parsed
-                    showingVoiceConfirmation = true
-                }
-            } catch {
-                print("Voice input parsing failed: \(error.localizedDescription)")
-                // On parsing failure, keep the text in the field for manual submission
-            }
-        }
-    }
+    // Removed: parseAndShowConfirmation - replaced with handleVoiceDone in overlay
 
     private func confirmVoiceItems() {
         // Add the pre-parsed items from voice input
@@ -1486,11 +1508,7 @@ struct GroceryNoteDetailView: View {
             await MainActor.run {
                 note.updatedAt = Date()
                 try? modelContext.save()
-
-                // Clear confirmation state
-                parsedVoiceItems = []
-                showingVoiceConfirmation = false
-                currentTranscription = ""
+                // Note: dismissVoiceOverlay handles clearing state
             }
         }
     }
@@ -2740,82 +2758,90 @@ struct VoiceRecordingSheet: View {
     let currentTranscription: String
     let namespace: Namespace.ID
     let isRecording: Bool
+    let isParsing: Bool
     let onDone: () -> Void
     let onCancel: () -> Void
-    @Environment(\.dismiss) private var dismiss
     @State private var isPulsing = false
 
     var body: some View {
         VStack(spacing: 24) {
-            // Microphone icon with pulse animation
-            ZStack {
-                Circle()
-                    .fill(Color.red.opacity(0.1))
-                    .frame(width: 80, height: 80)
-                    .scaleEffect(isPulsing ? 1.3 : 1.0)
+            // Microphone icon with pulse animation or loading indicator
+            if isParsing {
+                ProgressView()
+                    .scaleEffect(1.5)
+                    .padding(.top, 32)
+            } else {
+                ZStack {
+                    Circle()
+                        .fill(Color.red.opacity(0.1))
+                        .frame(width: 80, height: 80)
+                        .scaleEffect(isPulsing ? 1.3 : 1.0)
 
-                Circle()
-                    .fill(Color.red.opacity(0.2))
-                    .frame(width: 64, height: 64)
-                    .scaleEffect(isPulsing ? 1.2 : 1.0)
+                    Circle()
+                        .fill(Color.red.opacity(0.2))
+                        .frame(width: 64, height: 64)
+                        .scaleEffect(isPulsing ? 1.2 : 1.0)
 
-                Image(systemName: "mic.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.red)
-            }
-            .padding(.top, 32)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                    isPulsing = true
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 28))
+                        .foregroundStyle(.red)
+                }
+                .padding(.top, 32)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                        isPulsing = true
+                    }
                 }
             }
 
             // Transcription display
             VStack(spacing: 8) {
-                Text("Listening...")
+                Text(isParsing ? "Processing..." : "Listening...")
                     .font(.outfit(14, weight: .medium))
                     .foregroundStyle(.secondary)
 
-                ScrollView {
-                    Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
-                        .font(.outfit(18))
-                        .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 24)
-                        .frame(maxWidth: .infinity)
+                if !isParsing {
+                    ScrollView {
+                        Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
+                            .font(.outfit(18))
+                            .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 24)
+                            .frame(maxWidth: .infinity)
+                    }
+                    .frame(maxHeight: 80)
                 }
-                .frame(maxHeight: 80)
             }
 
             Spacer()
 
             // Action buttons
-            HStack(spacing: 12) {
-                Button {
-                    onCancel()
-                    dismiss()
-                } label: {
-                    Text("Cancel")
-                        .font(.outfit(17))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
+            if !isParsing {
+                HStack(spacing: 12) {
+                    Button {
+                        onCancel()
+                    } label: {
+                        Text("Cancel")
+                            .font(.outfit(17))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.bordered)
 
-                Button {
-                    onDone()
-                    dismiss()
-                } label: {
-                    Text("Done")
-                        .font(.outfit(17, weight: .semiBold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
+                    Button {
+                        onDone()
+                    } label: {
+                        Text("Done")
+                            .font(.outfit(17, weight: .semiBold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(.black)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(.black)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 350)
@@ -2827,6 +2853,86 @@ struct VoiceRecordingSheet: View {
                         .fill(Color.white.opacity(0.85))
                 )
                 .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording)
+                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 40)
+    }
+}
+
+struct VoiceParsedItemsSheet: View {
+    let parsedItems: [ParsedIngredient]
+    let namespace: Namespace.ID
+    let onConfirm: () -> Void
+    let onCancel: () -> Void
+
+    var body: some View {
+        VStack(spacing: 24) {
+            // Header
+            Text("Add Items to List")
+                .font(.outfit(20, weight: .semiBold))
+                .padding(.top, 32)
+
+            // Items list
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(parsedItems, id: \.name) { item in
+                        HStack(spacing: 8) {
+                            Text("•")
+                                .font(.outfit(16))
+                            Text(item.name)
+                                .font(.outfit(16))
+                            if let quantity = item.quantity {
+                                Text("(\(quantity))")
+                                    .font(.outfit(15))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 24)
+            }
+
+            Spacer()
+
+            // Action buttons
+            HStack(spacing: 12) {
+                Button {
+                    onCancel()
+                } label: {
+                    Text("Cancel")
+                        .font(.outfit(17))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
+
+                Button {
+                    onConfirm()
+                } label: {
+                    Text("Add All Items")
+                        .font(.outfit(17, weight: .semiBold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.black)
+            }
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 450)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.white.opacity(0.85))
+                )
+                .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: true)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
                 .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
         )
