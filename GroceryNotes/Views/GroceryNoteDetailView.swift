@@ -80,6 +80,7 @@ struct GroceryNoteDetailView: View {
     @State private var isExpanding: Bool = false  // Track expansion animation state
     @State private var expandedHeight: CGFloat = 0  // Track measured expanded height
     @Namespace private var expansionNamespace
+    @Namespace private var voiceRecordingNamespace
 
     enum ViewMode: String, CaseIterable {
         case ordered = "Aisles"
@@ -136,6 +137,7 @@ struct GroceryNoteDetailView: View {
             newItemName: $newItemName,
             isInputFocused: _isInputFocused,
             isRecording: $isRecording,
+            namespace: voiceRecordingNamespace,
             onAdd: {
                 handleInputSubmission()
             },
@@ -670,11 +672,51 @@ struct GroceryNoteDetailView: View {
         .zIndex(100)
     }
 
+    @ViewBuilder
+    private var voiceRecordingOverlay: some View {
+        if isRecording {
+            ZStack {
+                // Dim background
+                Color.black.opacity(0.3)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        Task {
+                            await cleanupRecording()
+                        }
+                    }
+
+                // Recording sheet that expands from microphone button
+                VStack {
+                    Spacer()
+
+                    VoiceRecordingSheet(
+                        currentTranscription: currentTranscription,
+                        namespace: voiceRecordingNamespace,
+                        onDone: {
+                            Task {
+                                await stopRecording()
+                            }
+                        },
+                        onCancel: {
+                            Task {
+                                await cleanupRecording()
+                            }
+                        }
+                    )
+                }
+            }
+            .zIndex(200)
+            .transition(.opacity)
+            .animation(.spring(response: 0.4, dampingFraction: 0.8), value: isRecording)
+        }
+    }
+
     var body: some View {
         ZStack {
             backgroundLayer
             darkScrimOverlay
             expandedItemOverlay
+            voiceRecordingOverlay
         }
         .animation(.easeInOut(duration: 0.25), value: keyboardResponder.isKeyboardVisible)
         .navigationTitle(note.title)
@@ -827,23 +869,6 @@ struct GroceryNoteDetailView: View {
             if !isShowing {
                 pendingMealIdea = nil
             }
-        }
-        .sheet(isPresented: $isRecording) {
-            VoiceRecordingSheet(
-                currentTranscription: currentTranscription,
-                onDone: {
-                    Task {
-                        await stopRecording()
-                    }
-                },
-                onCancel: {
-                    Task {
-                        await cleanupRecording()
-                    }
-                }
-            )
-            .presentationDetents([.height(300)])
-            .presentationDragIndicator(.visible)
         }
         .sheet(isPresented: $showingVoiceConfirmation) {
             VoiceInputConfirmationSheet(
@@ -2532,6 +2557,7 @@ struct FloatingAddItemBar: View {
     @Binding var newItemName: String
     @FocusState var isInputFocused: Bool
     @Binding var isRecording: Bool
+    let namespace: Namespace.ID
     let onAdd: () -> Void
     let onMicrophoneTap: () -> Void
 
@@ -2593,38 +2619,34 @@ struct FloatingAddItemBar: View {
             .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
 
             // Microphone button - floating circle
-            Button {
-                onMicrophoneTap()
-            } label: {
-                ZStack {
-                    if isRecording {
-                        Circle()
-                            .fill(Color.red.opacity(0.2))
-                            .frame(width: 48, height: 48)
-                            .scaleEffect(isRecording ? 1.2 : 1.0)
-                            .animation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true), value: isRecording)
+            if !isRecording {
+                Button {
+                    onMicrophoneTap()
+                } label: {
+                    ZStack {
+                        Image(systemName: "mic.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(Color.black.opacity(0.4))
                     }
-                    Image(systemName: "mic.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(isRecording ? .red : Color.black.opacity(0.4))
                 }
+                .frame(width: 64, height: 64)
+                .background(
+                    ZStack {
+                        Circle()
+                            .fill(.ultraThinMaterial)
+                        Circle()
+                            .fill(Color.white.opacity(0.85))
+                    }
+                    .matchedGeometryEffect(id: "voiceButton", in: namespace)
+                )
+                .overlay(
+                    Circle()
+                        .stroke(Color.white, lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+                .accessibilityLabel("Start voice recording")
             }
-            .frame(width: 64, height: 64)
-            .background(
-                ZStack {
-                    Circle()
-                        .fill(.ultraThinMaterial)
-                    Circle()
-                        .fill(Color.white.opacity(0.85))
-                }
-            )
-            .overlay(
-                Circle()
-                    .stroke(Color.white, lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
-            .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
-            .accessibilityLabel(isRecording ? "Stop voice recording" : "Start voice recording")
 
             if !newItemName.isEmpty {
                 Button {
@@ -2714,6 +2736,7 @@ struct VoiceInputConfirmationSheet: View {
 
 struct VoiceRecordingSheet: View {
     let currentTranscription: String
+    let namespace: Namespace.ID
     let onDone: () -> Void
     let onCancel: () -> Void
     @Environment(\.dismiss) private var dismiss
@@ -2791,7 +2814,21 @@ struct VoiceRecordingSheet: View {
             .padding(.horizontal, 24)
             .padding(.bottom, 24)
         }
-        .background(Color(red: 0.941, green: 0.941, blue: 0.937))
+        .frame(maxWidth: .infinity)
+        .frame(height: 350)
+        .background(
+            RoundedRectangle(cornerRadius: 24)
+                .fill(.ultraThinMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 24)
+                        .fill(Color.white.opacity(0.85))
+                )
+                .matchedGeometryEffect(id: "voiceButton", in: namespace)
+                .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
+                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
+        )
+        .padding(.horizontal, 16)
+        .padding(.bottom, 40)
     }
 }
 
