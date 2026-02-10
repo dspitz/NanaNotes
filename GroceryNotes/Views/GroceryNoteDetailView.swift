@@ -265,7 +265,35 @@ struct GroceryNoteDetailView: View {
         List {
             switch viewMode {
             case .ordered:
-                        ForEach(groupedItems, id: \.category) { category, items in
+                if groupedItems.isEmpty {
+                    GeometryReader { geometry in
+                        VStack {
+                            Spacer()
+                            VStack(spacing: -8) {
+                                Image("cart 1")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 164, height: 164)
+                                VStack(spacing: 4) {
+                                    Text("Your Cart is Empty")
+                                        .font(.outfit(20, weight: .semiBold))
+                                    Text("Type or dictate your grocery list")
+                                        .font(.outfit(15))
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal, 32)
+                                }
+                            }
+                            Spacer()
+                        }
+                        .frame(width: geometry.size.width, height: geometry.size.height)
+                    }
+                    .frame(height: UIScreen.main.bounds.height - 280)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                } else {
+                    ForEach(groupedItems, id: \.category) { category, items in
                             // Category header as a list row
                             Text(category.rawValue)
                                 .font(.outfit(36, weight: .medium))
@@ -365,9 +393,38 @@ struct GroceryNoteDetailView: View {
                             .listRowInsets(EdgeInsets(top: 24, leading: 24, bottom: 16, trailing: 24))
                             .listRowSeparator(.hidden)
                     }
+                }
 
                 case .unordered:
-                    ForEach(Array(unorderedItems.enumerated()), id: \.element.id) { index, item in
+                    if unorderedItems.isEmpty {
+                        GeometryReader { geometry in
+                            VStack {
+                                Spacer()
+                                VStack(spacing: -8) {
+                                    Image("cart 1")
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 164, height: 164)
+                                    VStack(spacing: 4) {
+                                        Text("Your Cart is Empty")
+                                            .font(.outfit(20, weight: .semiBold))
+                                        Text("Type or dictate your grocery list")
+                                            .font(.outfit(15))
+                                            .foregroundStyle(.secondary)
+                                            .multilineTextAlignment(.center)
+                                            .padding(.horizontal, 32)
+                                    }
+                                }
+                                Spacer()
+                            }
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                        }
+                        .frame(height: UIScreen.main.bounds.height - 280)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                    } else {
+                        ForEach(Array(unorderedItems.enumerated()), id: \.element.id) { index, item in
                         let position: ItemRowView.Position = {
                             if unorderedItems.count == 1 {
                                 return .only
@@ -450,6 +507,7 @@ struct GroceryNoteDetailView: View {
                             .listRowInsets(EdgeInsets(top: 24, leading: 24, bottom: 16, trailing: 24))
                             .listRowSeparator(.hidden)
                     }
+                }
 
                 case .meals:
                     if mealDrafts.isEmpty {
@@ -715,6 +773,7 @@ struct GroceryNoteDetailView: View {
                     }
                 )
             }
+            .ignoresSafeArea(.all, edges: .bottom)
             .opacity(isOverlayVisible ? 1 : 0)
             .allowsHitTesting(isOverlayVisible)
         }
@@ -2802,6 +2861,9 @@ struct VoiceInputSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
     @State private var isPulsing = false
+    @State private var displayedTranscription: String = ""
+    @State private var transcriptionUpdateTask: Task<Void, Never>?
+    @State private var bananaRotation: Double = 0
 
     private var sheetHeight: CGFloat {
         if showingParsedItems {
@@ -2810,91 +2872,136 @@ struct VoiceInputSheet: View {
             let itemHeight: CGFloat = 32 // Each item row
             let calculatedHeight = baseHeight + (CGFloat(parsedItems.count) * itemHeight)
             return min(max(calculatedHeight, 400), 600)
+        } else if isRecording {
+            // Calculate dynamic height based on transcription text
+            let baseHeight: CGFloat = 250 // Mic icon (100) + labels (30) + buttons (60) + padding (60)
+            let textHeight = estimatedTextHeight(for: displayedTranscription)
+            let calculatedHeight = baseHeight + textHeight
+            return min(max(calculatedHeight, 350), 700)
         } else {
             return 350
         }
     }
 
+    private func estimatedTextHeight(for text: String) -> CGFloat {
+        if text.isEmpty {
+            return 30 // Height for "Start speaking..." placeholder
+        }
+
+        // Estimate based on character count and available width
+        let screenWidth = UIScreen.main.bounds.width
+        let availableWidth = screenWidth - 24 - 24 - 24 // horizontal padding + margins
+        let font = UIFont.systemFont(ofSize: 18, weight: .regular)
+
+        let paragraphStyle = NSMutableParagraphStyle()
+        paragraphStyle.alignment = .center
+        paragraphStyle.lineSpacing = 4
+
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .paragraphStyle: paragraphStyle
+        ]
+
+        let size = (text as NSString).boundingRect(
+            with: CGSize(width: availableWidth, height: .greatestFiniteMagnitude),
+            options: [.usesLineFragmentOrigin, .usesFontLeading],
+            attributes: attributes,
+            context: nil
+        ).size
+
+        // Add some padding to ensure text isn't clipped
+        return min(ceil(size.height) + 20, 300) // Max 300pt for text area
+    }
+
     var body: some View {
-        ZStack {
-            // Recording/Parsing view
-            VStack(spacing: 24) {
+        ZStack(alignment: .bottom) {
+            Group {
                 if isParsing {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .padding(.top, 32)
+                    // Centered banana spinner when parsing
+                    VStack {
+                        Spacer()
+                        Text("🍌")
+                            .font(.system(size: 64))
+                            .rotationEffect(.degrees(bananaRotation))
+                        Text("Processing...")
+                            .font(.outfit(14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .padding(.top, 16)
+                        Spacer()
+                    }
                 } else {
-                    ZStack {
-                        Circle()
-                            .fill(Color.red.opacity(0.1))
-                            .frame(width: 80, height: 80)
-                            .scaleEffect(isPulsing ? 1.3 : 1.0)
-                            .matchedGeometryEffect(id: "micCircleOuter", in: namespace, isSource: isRecording)
+                    // Recording/Parsing view
+                    VStack(spacing: 0) {
+                        VStack(spacing: 24) {
+                            ZStack {
+                                Circle()
+                                    .fill(Color.red.opacity(0.1))
+                                    .frame(width: 80, height: 80)
+                                    .scaleEffect(isPulsing ? 1.3 : 1.0)
+                                    .matchedGeometryEffect(id: "micCircleOuter", in: namespace, isSource: isRecording)
 
-                        Circle()
-                            .fill(Color.red.opacity(0.2))
-                            .frame(width: 64, height: 64)
-                            .scaleEffect(isPulsing ? 1.2 : 1.0)
-                            .matchedGeometryEffect(id: "micCircle", in: namespace, isSource: isRecording)
+                                Circle()
+                                    .fill(Color.red.opacity(0.2))
+                                    .frame(width: 64, height: 64)
+                                    .scaleEffect(isPulsing ? 1.2 : 1.0)
+                                    .matchedGeometryEffect(id: "micCircle", in: namespace, isSource: isRecording)
 
-                        Image(systemName: "mic.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(.red)
-                            .matchedGeometryEffect(id: "micIcon", in: namespace, isSource: isRecording)
-                    }
-                    .padding(.top, 32)
-                    .onAppear {
-                        withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
-                            isPulsing = true
+                                Image(systemName: "mic.fill")
+                                    .font(.system(size: 28))
+                                    .foregroundStyle(.red)
+                                    .matchedGeometryEffect(id: "micIcon", in: namespace, isSource: isRecording)
+                            }
+                            .padding(.top, 32)
+                            .onAppear {
+                                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                                    isPulsing = true
+                                }
+                            }
+
+                            VStack(spacing: 8) {
+                                Text("Listening...")
+                                    .font(.outfit(14, weight: .medium))
+                                    .foregroundStyle(.secondary)
+
+                                Text(displayedTranscription.isEmpty ? "Start speaking..." : displayedTranscription)
+                                    .font(.outfit(18))
+                                    .foregroundStyle(displayedTranscription.isEmpty ? .secondary : .primary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 24)
+                                    .frame(maxWidth: .infinity)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .animation(.none, value: displayedTranscription)
+                            }
+                            .frame(maxHeight: 300)
                         }
-                    }
-                }
+                        .frame(maxHeight: .infinity, alignment: .top)
 
-                VStack(spacing: 8) {
-                    Text(isParsing ? "Processing..." : "Listening...")
-                        .font(.outfit(14, weight: .medium))
-                        .foregroundStyle(.secondary)
+                        HStack(spacing: 12) {
+                            Button {
+                                onCancel()
+                            } label: {
+                                Text("Cancel")
+                                    .font(.outfit(17))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.bordered)
 
-                    if !isParsing {
-                        ScrollView {
-                            Text(currentTranscription.isEmpty ? "Start speaking..." : currentTranscription)
-                                .font(.outfit(18))
-                                .foregroundStyle(currentTranscription.isEmpty ? .secondary : .primary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 24)
-                                .frame(maxWidth: .infinity)
+                            Button {
+                                onDone()
+                            } label: {
+                                Text("Done")
+                                    .font(.outfit(17, weight: .semiBold))
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.black)
                         }
-                        .frame(maxHeight: 80)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                        .padding(.bottom, 24)
                     }
-                }
-
-                Spacer()
-
-                if !isParsing {
-                    HStack(spacing: 12) {
-                        Button {
-                            onCancel()
-                        } label: {
-                            Text("Cancel")
-                                .font(.outfit(17))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        }
-                        .buttonStyle(.bordered)
-
-                        Button {
-                            onDone()
-                        } label: {
-                            Text("Done")
-                                .font(.outfit(17, weight: .semiBold))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 14)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.black)
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 24)
                 }
             }
             .opacity(showingParsedItems ? 0 : 1)
@@ -2976,20 +3083,41 @@ struct VoiceInputSheet: View {
         .frame(maxWidth: .infinity)
         .frame(height: sheetHeight)
         .background(
-            RoundedRectangle(cornerRadius: 24)
+            RoundedRectangle(cornerRadius: 48)
                 .fill(.ultraThinMaterial)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 24)
+                    RoundedRectangle(cornerRadius: 48)
                         .fill(Color.white.opacity(0.85))
                 )
                 .matchedGeometryEffect(id: "voiceButton", in: namespace, isSource: isRecording || isParsing || showingParsedItems)
                 .shadow(color: Color.black.opacity(0.08), radius: 8, x: 0, y: 2)
                 .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 4)
         )
-        .padding(.horizontal, 16)
-        .padding(.bottom, 40)
+        .padding(.horizontal, 12)
+        .padding(.bottom, 12)
         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: sheetHeight)
         .animation(.easeInOut(duration: 0.3), value: showingParsedItems)
+        .onChange(of: currentTranscription) { oldValue, newValue in
+            // Cancel any pending update
+            transcriptionUpdateTask?.cancel()
+
+            // Schedule a delayed update
+            transcriptionUpdateTask = Task {
+                try? await Task.sleep(for: .milliseconds(100))
+                if !Task.isCancelled {
+                    displayedTranscription = newValue
+                }
+            }
+        }
+        .onChange(of: isParsing) { oldValue, newValue in
+            if newValue {
+                // Reset and restart banana rotation when parsing starts
+                bananaRotation = 0
+                withAnimation(.linear(duration: 1.0).repeatForever(autoreverses: false)) {
+                    bananaRotation = 360
+                }
+            }
+        }
     }
 }
 
